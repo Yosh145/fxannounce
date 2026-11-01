@@ -1,0 +1,155 @@
+# FXAnnounce airline table (VP_SPEC.md § 1.4): maps MCDU flight-number prefixes (IATA) and livery folder names to
+# ICAO airline codes, the names of Airline Pack folders. Users can add or override rows in
+# Resources/plugins/AirlinePacks/airlines.tsv (same format; rows there win).
+# Columns (tab-separated): ICAO <tab> IATA <tab> names, '|'-separated <tab> optional registration prefixes, ','-separated
+# When several rows share a name (easyJet), the registration in the livery name picks the row.
+AAL	AA	American Airlines|American
+ABY	G9	Air Arabia
+ACA	AC	Air Canada
+AEA	UX	Air Europa
+AEE	A3	Aegean|Aegean Airlines
+AFL	SU	Aeroflot
+AFR	AF	Air France
+AHY	J2	Azerbaijan Airlines|AZAL
+AIC	AI	Air India
+AIQ	FD	Thai AirAsia	HS-
+AMC	KM	Air Malta|KM Malta Airlines
+AMX	AM	Aeromexico|Aeroméxico
+ANA	NH	All Nippon Airways|ANA
+ANZ	NZ	Air New Zealand
+APJ	MM	Peach|Peach Aviation
+ARG	AR	Aerolineas Argentinas|Aerolíneas Argentinas
+ASA	AS	Alaska Airlines|Alaska
+ASL	JU	Air Serbia
+AUA	OS	Austrian|Austrian Airlines
+AVA	AV	Avianca
+AWE	US	US Airways
+AXB	IX	Air India Express
+AXM	AK	AirAsia|Air Asia	9M-
+AZA	AZ	Alitalia
+AZU	AD	Azul
+BAW	BA	British Airways
+BEL	SN	Brussels Airlines
+BTI	BT	airBaltic|Air Baltic
+CAL	CI	China Airlines
+CCA	CA	Air China
+CEB	5J	Cebu Pacific
+CES	MU	China Eastern
+CFG	DE	Condor
+CHH	HU	Hainan Airlines|Hainan
+CLH	CL	Lufthansa CityLine|CityLine
+CMP	CM	Copa Airlines|Copa
+CPA	CX	Cathay Pacific|Cathay
+CQH	9C	Spring Airlines
+CSA	OK	Czech Airlines
+CSN	CZ	China Southern
+CTN	OU	Croatia Airlines
+DAH	AH	Air Algerie|Air Algérie
+DAL	DL	Delta Air Lines|Delta
+DLA	EN	Air Dolomiti
+DLH	LH	Lufthansa
+EDW	WK	Edelweiss|Edelweiss Air
+EIN	EI	Aer Lingus
+EZY	U2	easyJet UK|easyJet	G-
+EJU	EC	easyJet Europe|easyJet	OE-
+ELY	LY	El Al|EL AL
+ETD	EY	Etihad|Etihad Airways
+ETH	ET	Ethiopian|Ethiopian Airlines
+EVA	BR	EVA Air
+EWG	EW	Eurowings
+EXS	LS	Jet2|Jet2.com
+EZS	DS	easyJet Switzerland|easyJet	HB-
+FFT	F9	Frontier Airlines|Frontier
+FIN	AY	Finnair
+FJI	FJ	Fiji Airways
+GFA	GF	Gulf Air
+GIA	GA	Garuda Indonesia|Garuda
+GLO	G3	GOL|Gol Linhas Aereas
+GWI	4U	Germanwings
+HAL	HA	Hawaiian Airlines|Hawaiian
+HVN	VN	Vietnam Airlines
+IBE	IB	Iberia
+IBS	I2	Iberia Express
+ICE	FI	Icelandair
+IGO	6E	IndiGo
+ITY	AZ	ITA Airways|ITA
+JAF	TB	TUI fly Belgium
+JAL	JL	Japan Airlines|JAL
+JBU	B6	JetBlue|jetBlue Airways
+JJA	7C	Jeju Air
+JJP	GK	Jetstar Japan
+JNA	LJ	Jin Air
+JST	JQ	Jetstar
+JZA	QK	Jazz|Air Canada Jazz
+KAC	KU	Kuwait Airways
+KAL	KE	Korean Air
+KLM	KL	KLM|KLM Royal Dutch Airlines
+KQA	KQ	Kenya Airways
+KZR	KC	Air Astana
+LAN	LA	LATAM|LAN Airlines
+LNI	JT	Lion Air
+LOG	LM	Loganair
+LOT	LO	LOT Polish Airlines|LOT
+LVL	LV	Level
+LZB	FB	Bulgaria Air
+MAS	MH	Malaysia Airlines|Malaysia
+MAU	MK	Air Mauritius
+MEA	ME	Middle East Airlines|MEA
+MSR	MS	EgyptAir|Egypt Air
+MXY	MX	Breeze Airways|Breeze
+NAX	DY	Norwegian|Norwegian Air Shuttle
+NKS	NK	Spirit Airlines|Spirit
+OMA	WY	Oman Air
+PAL	PR	Philippine Airlines|Philippine
+PGT	PC	Pegasus|Pegasus Airlines
+PIA	PK	Pakistan International|PIA
+POE	PD	Porter|Porter Airlines
+QFA	QF	Qantas
+QTR	QR	Qatar Airways|Qatar
+RAM	AT	Royal Air Maroc
+RBA	BI	Royal Brunei
+RJA	RJ	Royal Jordanian
+ROT	RO	TAROM
+ROU	RV	Air Canada Rouge|Rouge
+RWD	WB	RwandAir
+RYR	FR	Ryanair
+SAA	SA	South African Airways|South African
+SAS	SK	Scandinavian Airlines|SAS
+SBI	S7	S7 Airlines|S7
+SCX	SY	Sun Country|Sun Country Airlines
+SDM	FV	Rossiya
+SEJ	SG	SpiceJet
+SEY	HM	Air Seychelles
+SIA	SQ	Singapore Airlines
+SJX	JX	Starlux|STARLUX Airlines
+SVA	SV	Saudia|Saudi Arabian Airlines
+SWA	WN	Southwest Airlines|Southwest
+SWG	WG	Sunwing
+SWR	LX	Swiss|Swiss International Air Lines
+SXS	XQ	SunExpress
+TAM	JJ	LATAM Brasil|TAM
+TAP	TP	TAP Air Portugal|TAP Portugal
+TAR	TU	Tunisair
+TGW	TR	Scoot
+THA	TG	Thai Airways|Thai
+THY	TK	Turkish Airlines|Turkish
+TOM	BY	TUI Airways|TUI	G-
+TRA	HV	Transavia	PH-
+TSC	TS	Air Transat|Transat
+TUI	X3	TUIfly|TUI fly	D-
+TVF	TO	Transavia France|Transavia	F-
+TVS	QS	Smartwings
+TWB	TW	T'way Air|Tway
+UAE	EK	Emirates
+UAL	UA	United Airlines|United
+UZB	HY	Uzbekistan Airways
+VIR	VS	Virgin Atlantic
+VIV	VB	VivaAerobus|Viva Aerobus
+VJC	VJ	VietJet|Vietjet Air
+VLG	VY	Vueling
+VOE	V7	Volotea
+VOI	Y4	Volaris
+VOZ	VA	Virgin Australia
+VTI	UK	Vistara
+WJA	WS	WestJet
+WZZ	W6	Wizz Air|Wizz
