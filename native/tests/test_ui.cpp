@@ -11,6 +11,10 @@
 
 #include <cstdio>
 
+#ifdef NDEBUG
+#error "fx_ui_tests needs ImGui's assertions: build it with -UNDEBUG (see native/CMakeLists.txt)"
+#endif
+
 namespace fxa::ui {
 // fonts.cpp needs ImgWindow; the headless test draws with ImGui's default font.
 Fonts& fonts()

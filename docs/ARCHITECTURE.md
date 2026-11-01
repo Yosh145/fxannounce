@@ -83,9 +83,38 @@ sbh/* datarefs ──► SimbriefSource ──► Ofp ──► checkOfp / board
 | Path | What |
 |---|---|
 | `Resources/plugins/FXAnnounce/{lin,win,mac}_x64/FXAnnounce.xpl` | the plugin |
-| `Resources/plugins/AirlinePacks/` | packs (user-installed), plus optional `liveries.ini` |
+| `Resources/plugins/AirlinePacks/` | packs (user-installed), plus optional `liveries.ini` and `airlines.tsv`. The release zip ships it empty except for `PUT_YOUR_PACKS_HERE.txt`; only sub-folders are scanned, so loose files are ignored |
 | `<livery>/airlinepack.cfg` | optional per-livery mapping |
 | `Output/preferences/FXAnnounce.ini` | settings (written by the UI) |
 | `Output/FXAnnounce.log` | the plugin's own log (rotated at 1 MB, one backup). `Log.txt` gets one-line summaries |
 | `Output/FXAnnounce/*.fxtrace.csv` | recorder output (when enabled) |
 | `Resources/plugins/simbrief_hub/` | optional companion plugin (not ours); FXAnnounce only reads its datarefs |
+
+## 6. Build, CI and releases
+`.github/workflows/build.yml` runs on every push, pull request and tag.
+
+| Job | Runner | Does |
+|---|---|---|
+| `linux` | ubuntu-22.04 (oldest glibc we support) | Release build with static libstdc++, `fx_tests`, `fx_ui_tests` |
+| `windows` | windows-2022 | MSVC Release build, `fx_tests`, `fx_ui_tests` |
+| `macos` | macos-15 | universal (x86_64 + arm64) Release build, checked with `lipo`, then `fx_tests`, `fx_ui_tests` |
+| `package` | ubuntu-22.04 | after all three: `tools/package.sh` assembles the install layout below. It is uploaded as the `FXAnnounce` artifact on every run, so testers can grab any build |
+| `release` | ubuntu-22.04 | tags only: creates a **draft** GitHub release with the zip, its checksum and the notes. The owner publishes it |
+
+- **Test gate:** a release needs every job green, and both test suites run on all three platforms. `fx_ui_tests`
+  keeps assertions on in Release builds on every compiler (`-UNDEBUG`, also under MSVC). `test_ui.cpp` refuses to
+  compile if `NDEBUG` is still defined, so the gate can't silently test nothing.
+- **Install layout** (`FXAnnounce-<version>.zip`). The user copies both folders into `X-Plane 12/Resources/plugins/`:
+  ```
+  FXAnnounce/{lin_x64,win_x64,mac_x64}/FXAnnounce.xpl
+  FXAnnounce/README.md, FXAnnounce/LICENSE
+  AirlinePacks/PUT_YOUR_PACKS_HERE.txt
+  ```
+  The plugin is self-contained: fonts and the airline table are compiled in, so nothing else ships.
+- **Cutting a release:** bump `project(FXAnnounce VERSION x.y.z)`, add a `## x.y.z` section to `CHANGELOG.md`,
+  commit, then push the tag `vx.y.z`. `package` fails if the tag isn't `v` + the CMake version or if the
+  CHANGELOG section is missing. The release notes are that section followed by install steps, the zip's SHA-256
+  and a link to the tagged source (GPL-3.0). Re-running the workflow on the same tag replaces that tag's draft; a
+  published release is never changed (the job fails instead, so bump the version).
+- **macOS signing:** the Mac build is not notarized; only the linker's ad-hoc signature is present. The notes and the
+  README give the `xattr` command that clears the download quarantine.

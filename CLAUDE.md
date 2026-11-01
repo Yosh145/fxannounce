@@ -13,7 +13,9 @@ owner tests in X-Plane and reviews.
    no XPLM calls off the main thread, no writes to ToLiss datarefs or commands in v1, `core/` stays free of XPLM
    and ImGui.
 4. **Versioning:** semver in `native/CMakeLists.txt` (`project(FXAnnounce VERSION ...)`). Bump it in the same commit
-   as every change under `native/src/` or `native/data/`.
+   as every change under `native/src/` or `native/data/`, and add or extend that version's `## x.y.z` section in
+   `CHANGELOG.md` (user-facing wording: it becomes the release notes). Releases come from pushing tag `vx.y.z`
+   (`docs/ARCHITECTURE.md` § 6); the owner tags and publishes, never an agent.
 5. **Build and tests:**
    `cmake -S native -B build -G Ninja && cmake --build build && cmake --build build --target fx_tests fx_ui_tests && ./build/fx_tests && ./build/fx_ui_tests`
 6. **Never commit** `Packs/` (community audio), the downloaded Fenix pages, or `old/`. Tests that need the sample

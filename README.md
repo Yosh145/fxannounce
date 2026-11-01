@@ -50,11 +50,22 @@ the gate, the safety briefing, cabin checks, cabin dimming, the after-takeoff an
 **Not needed:** any other ToLiss add-on. FXAnnounce reads the ToLiss datarefs directly. Discrepancies may happen with other announcement mods, please disable them before running FXAnnounce.
 
 ## Install
-1. Copy the `FXAnnounce` folder into `X-Plane 12/Resources/plugins/`.
-2. Put your Airline Packs into `X-Plane 12/Resources/plugins/AirlinePacks/`. Each pack is a folder named with the
+1. Download the latest `FXAnnounce-x.y.z.zip` from the [Releases page](https://github.com/Yosh145/fxannounce/releases)
+   and extract it. One zip works on Linux, Windows and macOS (Intel and Apple Silicon).
+2. Copy both folders, `FXAnnounce` and `AirlinePacks`, into `X-Plane 12/Resources/plugins/`. If you already have an
+   `AirlinePacks` folder, let them merge: nothing of yours is replaced.
+3. Put your Airline Packs into `X-Plane 12/Resources/plugins/AirlinePacks/`. Each pack is a folder named with the
    airline's ICAO code (`DLH`, `BAW`…), plus an optional `Default` folder.
-3. Start X-Plane and load a ToLiss A319, A320 or A321. If you add packs later, use the `fxannounce/rescan` command.
-4. FXAnnounce stays dormant on every other aircraft. The A330 and A340 are planned for a later version.
+4. Start X-Plane and load a ToLiss A319, A320 or A321. If you add packs later, use the `fxannounce/rescan` command.
+5. FXAnnounce stays dormant on every other aircraft. The A330 and A340 are planned for a later version.
+
+**Updating:** replace the `FXAnnounce` folder. Your settings are kept.
+
+**macOS:** the plugin isn't notarized by Apple. If X-Plane reports that FXAnnounce can't be opened or verified, run
+this once in Terminal (adjust the path to your X-Plane folder), then restart X-Plane:
+```
+xattr -dr com.apple.quarantine "/Applications/X-Plane 12/Resources/plugins/FXAnnounce"
+```
 
 ## Choosing a pack for a livery
 In this order, the plugin goes:
@@ -104,16 +115,8 @@ Sounds from different packs are never mixed.
 - **Log:** `Output/FXAnnounce.log`. Turn on **Record flight trace** to also write a CSV trace to `Output/FXAnnounce/`.
   Traces can contain your SimBrief or account details, so check them before you share them.
 
-## What's in this version
-**Fixes**
-- The UI no longer calls into X-Plane while the plugin is unloading (0.1.1). Disabling or reloading FXAnnounce no
-  longer risks a crash.
-- Your old `boarding_on_call` setting is converted to the new **Boarding starts** setting automatically.
-
-**Changes since 0.1**
-- ToLiss A320 and A321 support, with boarding timed from the SimBrief plan.
-- The A330 and A340 load.
-- The Inspector and probe checklist for checking ToLiss values on your own aircraft.
+## What's new
+See [CHANGELOG.md](CHANGELOG.md) for the changes in each version.
 
 ## Known limitations
 - **Not yet confirmed in the simulator.** The ToLiss flight-phase encodings (ECAM and QPAC phases, thrust-lever
@@ -130,7 +133,8 @@ cmake -S native -B build -G Ninja
 cmake --build build
 cmake --build build --target fx_tests fx_ui_tests && ./build/fx_tests && ./build/fx_ui_tests
 ```
-The plugin is written to `build/FXAnnounce/<platform>/FXAnnounce.xpl`. Developers: see `docs/` for the behaviour
+The plugin is written to `build/FXAnnounce/<platform>/FXAnnounce.xpl`. Releases are built by CI from a version
+tag (`docs/ARCHITECTURE.md` § 6). Developers: see `docs/` for the behaviour
 spec (`VP_SPEC.md`), the design (`ARCHITECTURE.md`), the ToLiss datarefs (`TOLISS_DATAREFS.md`) and the in-sim
 checklist (`ACCEPTANCE.md`).
 

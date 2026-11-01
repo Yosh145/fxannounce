@@ -241,6 +241,5 @@ add_executable(fx_ui_tests EXCLUDE_FROM_ALL tests/test_ui.cpp ${FXA_CORE_SOURCES
     ${imgui_SOURCE_DIR}/imgui_tables.cpp
     ${imgui_SOURCE_DIR}/imgui_widgets.cpp)
 target_include_directories(fx_ui_tests PRIVATE src ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(fx_ui_tests PRIVATE -UNDEBUG)
-endif()
+# ImGui asserts stay on in Release on every compiler (MSVC takes -U too and warns D9025 about overriding /DNDEBUG).
+target_compile_options(fx_ui_tests PRIVATE -UNDEBUG)

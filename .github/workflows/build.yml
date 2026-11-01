@@ -1,39 +1,94 @@
 name: build
 
+# Every push, PR and tag builds and tests all three platforms and packages the plugin. A tag vX.Y.Z also
+# creates a draft GitHub release (docs/ARCHITECTURE.md § 6).
 on:
   push:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   linux:
     runs-on: ubuntu-22.04          # oldest supported glibc for the release binary
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev ninja-build
       - run: cmake -S native -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DFXA_STATIC_RUNTIME=ON
       - run: cmake --build build
       - run: cmake --build build --target fx_tests && ./build/fx_tests
       - run: cmake --build build --target fx_ui_tests && ./build/fx_ui_tests
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: { name: lin_x64, path: build/FXAnnounce/lin_x64/FXAnnounce.xpl }
 
   windows:
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: cmake -S native -B build -G "Visual Studio 17 2022" -A x64
       - run: cmake --build build --config Release
       - run: cmake --build build --config Release --target fx_tests && ./build/Release/fx_tests.exe
-      - uses: actions/upload-artifact@v4
+      - run: cmake --build build --config Release --target fx_ui_tests && ./build/Release/fx_ui_tests.exe
+      - uses: actions/upload-artifact@v7
         with: { name: win_x64, path: build/FXAnnounce/win_x64/Release/FXAnnounce.xpl }
 
   macos:
     runs-on: macos-15              # macos-14 images retire 2026-11-02
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: cmake -S native -B build -DCMAKE_BUILD_TYPE=Release
       - run: cmake --build build
+      - run: lipo build/FXAnnounce/mac_x64/FXAnnounce.xpl -verify_arch x86_64 arm64   # one universal binary
       - run: cmake --build build --target fx_tests && ./build/fx_tests
-      - uses: actions/upload-artifact@v4
+      - run: cmake --build build --target fx_ui_tests && ./build/fx_ui_tests
+      - uses: actions/upload-artifact@v7
         with: { name: mac_x64, path: build/FXAnnounce/mac_x64/FXAnnounce.xpl }
+
+  package:
+    needs: [linux, windows, macos]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with: { pattern: "*_x64", path: dist-in }    # dist-in/{lin,win,mac}_x64/FXAnnounce.xpl
+      - env:
+          TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+        run: tools/package.sh dist-in dist "$TAG"
+      # Every run: the install layout (FXAnnounce/ + AirlinePacks/) for testers.
+      - uses: actions/upload-artifact@v7
+        with: { name: FXAnnounce, path: dist/stage }
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: |
+            dist/*.zip
+            dist/*.zip.sha256
+            dist/release-notes.md
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with: { name: release, path: release }
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # A re-run replaces this tag's draft. A published release is never touched.
+          if is_draft=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null); then
+            if [ "$is_draft" != "true" ]; then
+              echo "::error::Release $TAG is already published. Bump the version for a new release."
+              exit 1
+            fi
+            gh release delete "$TAG" --yes    # deletes the draft only; the git tag stays
+          fi
+          gh release create "$TAG" --draft --verify-tag --title "FXAnnounce ${TAG#v}" \
+            --notes-file release/release-notes.md release/*.zip release/*.zip.sha256
