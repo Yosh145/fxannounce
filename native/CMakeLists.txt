@@ -229,7 +229,9 @@ add_executable(fx_tests EXCLUDE_FROM_ALL tests/test_main.cpp tests/test_core.cpp
 target_include_directories(fx_tests PRIVATE src ${doctest_SOURCE_DIR})
 find_package(Threads REQUIRED)
 target_link_libraries(fx_tests PRIVATE Threads::Threads fxa_vorbis)
-target_compile_definitions(fx_tests PRIVATE FXA_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+# DOCTEST_CONFIG_USE_STD_HEADERS: doctest otherwise forward-declares std::ostream, and MSVC then can't
+# stringify std::string_view in a failed CHECK (C2027 "undefined type basic_ostream").
+target_compile_definitions(fx_tests PRIVATE FXA_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}" DOCTEST_CONFIG_USE_STD_HEADERS)
 
 # ---- headless UI test: every tab, many frames, ImGui asserts on (null backend) ----------------------
 add_executable(fx_ui_tests EXCLUDE_FROM_ALL tests/test_ui.cpp ${FXA_CORE_SOURCES} ${FXA_UI_SOURCES}

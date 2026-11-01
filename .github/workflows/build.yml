@@ -29,7 +29,7 @@ jobs:
         with: { name: win_x64, path: build/FXAnnounce/win_x64/Release/FXAnnounce.xpl }
 
   macos:
-    runs-on: macos-14
+    runs-on: macos-15              # macos-14 images retire 2026-11-02
     steps:
       - uses: actions/checkout@v4
       - run: cmake -S native -B build -DCMAKE_BUILD_TYPE=Release
