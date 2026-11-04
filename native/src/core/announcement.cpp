@@ -1,122 +1,172 @@
 #include "core/announcement.h"
 
-#include "core/strings.h"
-
 #include <cmath>
+
+#include "core/strings.h"
 
 namespace fxa {
 
 namespace {
 
 const char* kTypeNames[kAnnTypeCount] = {
-    "BoardingMusic", "BoardingWelcome", "BoardingComplete", "ArmDoors", "DisarmDoors", "PreSafetyBriefing",
-    "SafetyBriefing", "CrewTakeSeats", "CabinDim", "CabinSecured", "AfterTakeoff", "SeatbeltSignOn",
-    "SeatbeltSignOff", "CabinService", "DescentStarted", "AfterLanding", "DeboardingStarted",
-    "DeboardingComplete", "Decompression",
+    "BoardingMusic",   "BoardingWelcome",   "BoardingComplete",
+    "ArmDoors",        "DisarmDoors",       "PreSafetyBriefing",
+    "SafetyBriefing",  "CrewTakeSeats",     "CabinDim",
+    "CabinSecured",    "AfterTakeoff",      "SeatbeltSignOn",
+    "SeatbeltSignOff", "CabinService",      "DescentStarted",
+    "AfterLanding",    "DeboardingStarted", "DeboardingComplete",
+    "Decompression",
+};
+
+const char* kTypeLabels[kAnnTypeCount] = {
+    "Boarding music",    "Boarding welcome",   "Boarding complete",
+    "Arm doors",         "Disarm doors",       "Pre-safety briefing",
+    "Safety briefing",   "Crew take seats",    "Cabin dim",
+    "Cabin secured",     "After takeoff",      "Seatbelt sign on",
+    "Seatbelt sign off", "Cabin service",      "Descent started",
+    "After landing",     "Deboarding started", "Deboarding complete",
+    "Decompression",
 };
 
 struct Alias {
-    const char* name;
-    AnnType type;
-    CallContext context;
+  const char* name;
+  AnnType type;
+  CallContext context;
 };
 
-// VP_SPEC.md § 1.3 (D-11).
+// 1.3 d11
 const Alias kAliases[] = {
-    { "CrewSeatsTakeoff", AnnType::CrewTakeSeats, CallContext::Takeoff },
-    { "CrewSeatsLanding", AnnType::CrewTakeSeats, CallContext::Landing },
-    { "CabinDimTakeoff", AnnType::CabinDim, CallContext::Takeoff },
-    { "CabinDimLanding", AnnType::CabinDim, CallContext::Landing },
-    { "CallCabinSecureTakeoff", AnnType::CabinSecured, CallContext::Takeoff },
-    { "CallCabinSecureLanding", AnnType::CabinSecured, CallContext::Landing },
-    { "DescentSeatbelts", AnnType::DescentStarted, CallContext::Any },
-    { "DescentSeatbelt", AnnType::DescentStarted, CallContext::Any },
-    { "FastenSeatbelt", AnnType::SeatbeltSignOn, CallContext::Any },
-    { "DisembarkStarted", AnnType::DeboardingStarted, CallContext::Any },
+    {"CrewSeatsTakeoff", AnnType::CrewTakeSeats, CallContext::Takeoff},
+    {"CrewSeatsLanding", AnnType::CrewTakeSeats, CallContext::Landing},
+    {"CabinDimTakeoff", AnnType::CabinDim, CallContext::Takeoff},
+    {"CabinDimLanding", AnnType::CabinDim, CallContext::Landing},
+    {"CallCabinSecureTakeoff", AnnType::CabinSecured, CallContext::Takeoff},
+    {"CallCabinSecureLanding", AnnType::CabinSecured, CallContext::Landing},
+    {"DescentSeatbelts", AnnType::DescentStarted, CallContext::Any},
+    {"DescentSeatbelt", AnnType::DescentStarted, CallContext::Any},
+    {"FastenSeatbelt", AnnType::SeatbeltSignOn, CallContext::Any},
+    {"DisembarkStarted", AnnType::DeboardingStarted, CallContext::Any},
 };
 
-const char* kPhaseNames[] = { "PreFlight", "Takeoff", "Climb", "Cruise", "Descent", "Approach", "GA", "Done" };
-const char* kTimeNames[] = { "Morning", "Afternoon", "Evening", "Night" };
-const char* kModeNames[] = { "Manual", "Prerecorded", "Interphone" };
+// not fenix not legacy what to rename them to
+struct Hint {
+  const char* name;
+  const char* fenix;
+};
+const Hint kHints[] = {
+    {"BoardingStarted", "BoardingWelcome"},
+    {"Turbulence", "SeatbeltSignOn"},
+};
 
-} // namespace
+const char* kPhaseNames[] = {"PreFlight", "Takeoff",  "Climb", "Cruise",
+                             "Descent",   "Approach", "GA",    "Done"};
+const char* kTimeNames[] = {"Morning", "Afternoon", "Evening", "Night"};
+const char* kModeNames[] = {"Manual", "Prerecorded", "Interphone"};
 
-const char* annTypeName(AnnType t)
-{
-    const int k = static_cast<int>(t);
-    return (k >= 0 && k < kAnnTypeCount) ? kTypeNames[k] : "?";
+}  // namespace
+
+const char* annTypeName(AnnType t) {
+  const int k = static_cast<int>(t);
+  return (k >= 0 && k < kAnnTypeCount) ? kTypeNames[k] : "?";
 }
 
 const char* modeName(Mode m) { return kModeNames[static_cast<int>(m)]; }
 
-const char* contextName(CallContext c)
-{
-    switch (c) {
-    case CallContext::Takeoff: return "takeoff";
-    case CallContext::Landing: return "landing";
-    default: return "any";
-    }
+const char* annTypeLabel(AnnType t) {
+  const int k = static_cast<int>(t);
+  return (k >= 0 && k < kAnnTypeCount) ? kTypeLabels[k] : "?";
+}
+
+std::string annLabel(AnnType t, CallContext c) {
+  std::string s = annTypeLabel(t);
+  if (c != CallContext::Any) s += std::string(" (") + contextName(c) + ")";
+  return s;
+}
+
+std::string annFenixLabel(AnnType t, CallContext c) {
+  std::string s = annTypeName(t);
+  if (c != CallContext::Any) s += std::string(" (") + contextName(c) + ")";
+  return s;
+}
+
+const char* heardOn(AnnType t, Mode m) {
+  if (t == AnnType::BoardingMusic) return "Music";
+  return m == Mode::Interphone ? "Interphone" : "Cabin PA";
+}
+
+const char* contextName(CallContext c) {
+  switch (c) {
+    case CallContext::Takeoff:
+      return "takeoff";
+    case CallContext::Landing:
+      return "landing";
+    default:
+      return "any";
+  }
 }
 
 const char* phaseName(Phase p) { return kPhaseNames[static_cast<int>(p)]; }
-const char* timeOfDayName(TimeOfDay t) { return kTimeNames[static_cast<int>(t)]; }
+const char* timeOfDayName(TimeOfDay t) {
+  return kTimeNames[static_cast<int>(t)];
+}
 
-Mode defaultMode(AnnType t)
-{
-    switch (t) {
+Mode defaultMode(AnnType t) {
+  switch (t) {
     case AnnType::SafetyBriefing:
     case AnnType::AfterTakeoff:
     case AnnType::CabinService:
     case AnnType::Decompression:
-        return Mode::Prerecorded;
+      return Mode::Prerecorded;
     case AnnType::CabinSecured:
-        return Mode::Interphone;
+      return Mode::Interphone;
     default:
-        return Mode::Manual;
-    }
+      return Mode::Manual;
+  }
 }
 
-std::optional<TypeName> resolveTypeName(std::string_view name)
-{
-    name = trim(name);
-    for (int k = 0; k < kAnnTypeCount; ++k)
-        if (iequals(name, kTypeNames[k])) return TypeName{ static_cast<AnnType>(k), CallContext::Any, false };
-    for (const Alias& a : kAliases)
-        if (iequals(name, a.name)) return TypeName{ a.type, a.context, true };
-    return std::nullopt;
+std::optional<TypeName> resolveTypeName(std::string_view name) {
+  name = trim(name);
+  for (int k = 0; k < kAnnTypeCount; ++k)
+    if (iequals(name, kTypeNames[k]))
+      return TypeName{static_cast<AnnType>(k), CallContext::Any, false};
+  for (const Alias& a : kAliases)
+    if (iequals(name, a.name)) return TypeName{a.type, a.context, true};
+  return std::nullopt;
 }
 
-std::optional<Phase> phaseFromTag(std::string_view tag)
-{
-    for (int k = 0; k < 8; ++k)
-        if (iequals(tag, kPhaseNames[k])) return static_cast<Phase>(k);
-    return std::nullopt;
+const char* fenixRenameHint(std::string_view name) {
+  for (const Hint& h : kHints)
+    if (iequals(name, h.name)) return h.fenix;
+  return nullptr;
 }
 
-std::optional<TimeOfDay> timeOfDayFromTag(std::string_view tag)
-{
-    for (int k = 0; k < 4; ++k)
-        if (iequals(tag, kTimeNames[k])) return static_cast<TimeOfDay>(k);
-    return std::nullopt;
+std::optional<Phase> phaseFromTag(std::string_view tag) {
+  for (int k = 0; k < 8; ++k)
+    if (iequals(tag, kPhaseNames[k])) return static_cast<Phase>(k);
+  return std::nullopt;
 }
 
-std::optional<Mode> modeFromTag(std::string_view tag)
-{
-    for (int k = 0; k < 3; ++k)
-        if (iequals(tag, kModeNames[k])) return static_cast<Mode>(k);
-    return std::nullopt;
+std::optional<TimeOfDay> timeOfDayFromTag(std::string_view tag) {
+  for (int k = 0; k < 4; ++k)
+    if (iequals(tag, kTimeNames[k])) return static_cast<TimeOfDay>(k);
+  return std::nullopt;
 }
 
-TimeOfDay timeOfDayAt(double sec)
-{
-    if (!std::isfinite(sec)) sec = 0;
-    sec = std::fmod(sec, 86400.0);
-    if (sec < 0) sec += 86400.0;
-    const double h = sec / 3600.0;
-    if (h < 6) return TimeOfDay::Night;
-    if (h < 12) return TimeOfDay::Morning;
-    if (h < 18) return TimeOfDay::Afternoon;
-    return TimeOfDay::Evening;
+std::optional<Mode> modeFromTag(std::string_view tag) {
+  for (int k = 0; k < 3; ++k)
+    if (iequals(tag, kModeNames[k])) return static_cast<Mode>(k);
+  return std::nullopt;
 }
 
-} // namespace fxa
+TimeOfDay timeOfDayAt(double sec) {
+  if (!std::isfinite(sec)) sec = 0;
+  sec = std::fmod(sec, 86400.0);
+  if (sec < 0) sec += 86400.0;
+  const double h = sec / 3600.0;
+  if (h < 6) return TimeOfDay::Night;
+  if (h < 12) return TimeOfDay::Morning;
+  if (h < 18) return TimeOfDay::Afternoon;
+  return TimeOfDay::Evening;
+}
+
+}  // namespace fxa

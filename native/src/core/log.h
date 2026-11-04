@@ -1,5 +1,4 @@
-// Logging: FXAnnounce.log (rotating) plus an optional sink for one-line summaries in X-Plane's Log.txt.
-// Pure C++ so the core can log in unit tests; the plugin installs the XPLMDebugString sink.
+// fxannounce.log rotates optional sink into log.txt pure cpp so tests can log
 #pragma once
 
 #include <cstdarg>
@@ -12,37 +11,47 @@ namespace fxa {
 
 enum class LogLevel { Error = 0, Warn = 1, Info = 2, Debug = 3 };
 
+// ui log row exact repeats collapse into the newest with a count
+struct LogLine {
+  std::string time;  // local
+  LogLevel level = LogLevel::Info;
+  std::string msg;
+  int count = 1;
+};
+const char* logLevelName(LogLevel lvl);
+
 class Log {
-public:
-    static Log& get();
+ public:
+  static Log& get();
 
-    // Opens (and rotates at 1 MB) the plugin's own log file. Empty path: no file.
-    void open(const std::string& path);
-    void close();
-    void setLevel(LogLevel lvl) { level_ = lvl; }
-    LogLevel level() const { return level_; }
-    // Receives Warn/Error lines and lines logged with `summary`, prefixed "FXAnnounce: " (Log.txt).
-    void setSummarySink(std::function<void(const char*)> sink);
+  // rotates at 1mb empty path no file
+  void open(const std::string& path);
+  void close();
+  void setLevel(LogLevel lvl) { level_ = lvl; }
+  LogLevel level() const { return level_; }
+  // warn/error summary lines go here
+  void setSummarySink(std::function<void(const char*)> sink);
 
-    void write(LogLevel lvl, bool summary, const char* fmt, va_list ap);
-    // The most recent lines, oldest first, for the UI (thread-safe copy).
-    std::deque<std::string> recent() const;
+  void write(LogLevel lvl, bool summary, const char* fmt, va_list ap);
+  // oldest first file still has everything
+  std::deque<LogLine> recent() const;
+  static constexpr size_t kRecentLines = 400;
 
-private:
-    Log() = default;
-    mutable std::mutex mu_;
-    LogLevel level_ = LogLevel::Info;
-    std::string path_;
-    void* file_ = nullptr;   // FILE*
-    std::function<void(const char*)> sink_;
-    std::deque<std::string> recent_;
+ private:
+  Log() = default;
+  mutable std::mutex mu_;
+  LogLevel level_ = LogLevel::Info;
+  std::string path_;
+  void* file_ = nullptr;  // file
+  std::function<void(const char*)> sink_;
+  std::deque<LogLine> recent_;
 };
 
 void logError(const char* fmt, ...);
 void logWarn(const char* fmt, ...);
 void logInfo(const char* fmt, ...);
 void logDebug(const char* fmt, ...);
-// Info line that also goes to Log.txt.
+// also to log.txt
 void logSummary(const char* fmt, ...);
 
-} // namespace fxa
+}  // namespace fxa

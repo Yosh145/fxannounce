@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(FXAnnounce VERSION 0.2.0 LANGUAGES C CXX)
+project(FXAnnounce VERSION 0.3.0 LANGUAGES C CXX)
 
 # -----------------------------------------------------------------------------
 # FXAnnounce: Fenix-style Virtual Purser cabin announcements for the ToLiss Airbus family.
@@ -122,7 +122,6 @@ set(FXA_CORE_SOURCES
     src/core/log.cpp
     src/core/pack_library.cpp
     src/core/pack_resolver.cpp
-    src/core/probe.cpp
     src/core/purser.cpp
     src/core/recorder.cpp
     src/core/refuel.cpp
@@ -138,19 +137,25 @@ set(FXA_AUDIO_SOURCES
     src/audio/decode_cache.cpp
     src/audio/decoder.cpp
     src/audio/hearing.cpp
+    src/audio/muffle.cpp
 )
 # Panel content (ImGui only, no XPLM, no ImgWindow): linked into the plugin and the headless UI test.
 set(FXA_UI_SOURCES
     src/ui/theme.cpp
+    src/ui/fonts_b612.cpp
     src/ui/widgets.cpp
     src/ui/panel.cpp
+    src/ui/tab_status.cpp
+    src/ui/tab_timeline.cpp
+    src/ui/tab_packs.cpp
+    src/ui/tab_settings.cpp
+    src/ui/tab_log.cpp
 )
 # X-Plane glue.
 set(FXA_XP_SOURCES
     src/plugin.cpp
     src/app.cpp
     src/sim/detect.cpp
-    src/sim/probe_census.cpp
     src/sim/simbrief_source.cpp
     src/sim/toliss_adapter.cpp
     src/audio/player.cpp
@@ -172,7 +177,7 @@ target_include_directories(FXAnnounce PRIVATE
     src
     ${imgui_SOURCE_DIR}
     ${imgwindow_SOURCE_DIR}
-    ${imgwindow_SOURCE_DIR}/sample-code/fonts
+    fonts
     ${XPSDK_DIR}/CHeaders/XPLM
     ${XPSDK_DIR}/CHeaders/Widgets)
 target_link_libraries(FXAnnounce PRIVATE fxa_vorbis)
@@ -240,6 +245,6 @@ add_executable(fx_ui_tests EXCLUDE_FROM_ALL tests/test_ui.cpp ${FXA_CORE_SOURCES
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
     ${imgui_SOURCE_DIR}/imgui_tables.cpp
     ${imgui_SOURCE_DIR}/imgui_widgets.cpp)
-target_include_directories(fx_ui_tests PRIVATE src ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
+target_include_directories(fx_ui_tests PRIVATE src fonts ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
 # ImGui asserts stay on in Release on every compiler (MSVC takes -U too and warns D9025 about overriding /DNDEBUG).
 target_compile_options(fx_ui_tests PRIVATE -UNDEBUG)

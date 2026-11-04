@@ -46,6 +46,9 @@ for p in lin_x64 win_x64 mac_x64; do
     cp "$in_dir/$p/FXAnnounce.xpl" "$stage/FXAnnounce/$p/"
 done
 cp "$root/README.md" "$root/LICENSE" "$stage/FXAnnounce/"
+# The B612 fonts are compiled in; the SIL OFL requires their licence to travel with them.
+mkdir -p "$stage/FXAnnounce/licenses"
+cp "$root/native/fonts/OFL.txt" "$stage/FXAnnounce/licenses/B612-OFL.txt"
 
 mkdir -p "$stage/AirlinePacks"
 cat > "$stage/AirlinePacks/PUT_YOUR_PACKS_HERE.txt" <<'EOF'

@@ -1,4 +1,4 @@
-// How loud each sound is in the cockpit (VP_SPEC.md § 4.5). Pure function of the settings and the sim snapshot.
+// how loud stuff is in the cockpit 4.5 pure function of settings snapshot
 #pragma once
 
 #include "core/config.h"
@@ -6,15 +6,29 @@
 
 namespace fxa {
 
-enum class SoundKind { Pa, Music, Interphone, Chime, Preview };
+enum class SoundKind { Pa, Music, Interphone, Chime };
 
-// How far the cockpit door lets cabin sound through, 0..1 (ToLiss's door blend or the door angle).
+// cabin at the camera 0 to 1 clear open door pa knob in the cabin and muffled
+// thru the closed door
+struct Hearing {
+  float clear = 0;
+  float muffled = 0;
+};
+
+// toliss door blend or the door angle
 float doorOpenFraction(const Settings& set, const SimState& s);
-// ToLiss's ISCS internal volume when its override is on and followed, else 1.
+// toliss iscs internal vol when override is on else 1
 float tolissVolume(const Settings& set, const SimState& s);
-// The cabin PA level as heard at the camera, 0..1 before the per-kind volume.
-float cabinHearing(const Settings& set, const SimState& s);
-// Final channel gain for a sound of this kind (0 when muted).
-float soundGain(SoundKind kind, const Settings& set, const SimState& s, bool muted);
+// muffling off muffled 0 and clear never under the floor
+Hearing cabinHearing(const Settings& set, const SimState& s);
+// 0 when muted pa/music the clear voice
+float soundGain(SoundKind kind, const Settings& set, const SimState& s,
+                bool muted);
+// muffled twin gain 0 for anything else
+float muffledGain(SoundKind kind, const Settings& set, const SimState& s,
+                  bool muted);
+// ckpt/oh/ chan acp /anim is degrees 0-270 up to 1.5 we treat as a ratio
+// already
+float acpKnobVolume(float raw);
 
-} // namespace fxa
+}  // namespace fxa

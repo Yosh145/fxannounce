@@ -1,46 +1,50 @@
-// Which Airline Pack is active for the loaded livery and flight number (VP_SPEC.md § 1.4).
+// which pack is active vp_spec 1.4
 #pragma once
-
-#include "core/airlines.h"
-#include "core/config.h"
-#include "core/pack_library.h"
 
 #include <optional>
 #include <string>
 #include <vector>
 
+#include "core/airlines.h"
+#include "core/config.h"
+#include "core/pack_library.h"
+
 namespace fxa {
 
-// Per-livery settings from <livery>/airlinepack.cfg or a matching [glob] section of AirlinePacks/liveries.ini.
+// airlinepack.cfg next to the livery or a glob in liveries.ini
 struct LiveryConfig {
-    std::string airline;                  // pack name
-    std::vector<std::string> customTags;
-    std::optional<bool> overwater;
-    std::string source;                   // "airlinepack.cfg", "liveries.ini [British Airways*]", or ""
+  std::string airline;
+  std::vector<std::string> customTags;
+  std::optional<bool> overwater;
+  std::string source;
 };
 
-// Reads the keys from any section of a sidecar file (Fenix spellings accepted).
+// any section fenix spellings ok
 LiveryConfig liveryConfigFromSidecar(const Ini& sidecar);
-// First section of liveries.ini whose glob matches the livery folder name (keys merged from that section only).
-LiveryConfig liveryConfigFromCentral(const Ini& central, const std::string& liveryName);
-// Sidecar wins key by key over the central mapping.
-LiveryConfig mergeLiveryConfig(const LiveryConfig& sidecar, const LiveryConfig& central);
+// first glob that matches wins
+LiveryConfig liveryConfigFromCentral(const Ini& central,
+                                     const std::string& liveryName);
+// sidecar beats central per key
+LiveryConfig mergeLiveryConfig(const LiveryConfig& sidecar,
+                               const LiveryConfig& central);
 
 struct ResolveInput {
-    std::string liveryName;     // folder name, "" for the default livery
-    std::string flightNumber;   // MCDU FLT NBR, may be ""
-    LiveryConfig livery;
-    std::string ofpCallsign;    // SimBrief OFP callsign ("DLH400") when the OFP passed its check, else ""
+  std::string liveryName;  // empty default livery
+  std::string flightNumber;
+  LiveryConfig livery;
+  std::string ofpCallsign;  // only when the ofp passed its check
 };
 
 struct Resolution {
-    const Pack* pack = nullptr;  // nullptr: no pack and no Default installed (silence)
-    std::string reason;          // "livery mapping (airlinepack.cfg)", "SimBrief OFP DLH400", "flight number DLH400", ...
+  const Pack* pack = nullptr;  // nullptr nothing installed silence
+  std::string reason;
 };
 
-Resolution resolvePack(const PackLibrary& lib, const AirlineTable& airlines, const ResolveInput& in);
+Resolution resolvePack(const PackLibrary& lib, const AirlineTable& airlines,
+                       const ResolveInput& in);
 
-// The airline part of a flight number: "DLH400" → {"DLH"}, "LH400" → IATA "LH" (resolved through the table).
-std::vector<std::string> airlineCodesFromFlightNumber(const AirlineTable& airlines, const std::string& flightNumber);
+// dlh400 to dlh lh400 to iata lh
+std::vector<std::string> airlineCodesFromFlightNumber(
+    const AirlineTable& airlines, const std::string& flightNumber);
 
-} // namespace fxa
+}  // namespace fxa

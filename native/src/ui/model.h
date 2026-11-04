@@ -1,9 +1,6 @@
-// What the panel shows and the actions it can trigger. Filled by the plugin each frame the window is drawn;
-// pure data + std::function so the headless UI test can drive every tab without X-Plane.
+// what the panel shows its actions filled by the plugin each frame plain data
+// std function so the headless test can drive it
 #pragma once
-
-#include "core/config.h"
-#include "core/pack_library.h"
 
 #include <deque>
 #include <functional>
@@ -11,87 +8,104 @@
 #include <utility>
 #include <vector>
 
+#include "core/config.h"
+#include "core/log.h"
+#include "core/pack_library.h"
+
 namespace fxa::ui {
 
 struct UiModel {
-    std::string version;
-    bool active = false;            // a ToLiss aircraft is loaded and the purser runs
-    bool safeMode = false;
-    std::string lastFault;
-    bool muted = false;
+  std::string version;
+  bool active = false;  // supported toliss loaded purser running
+  bool safeMode = false;
+  std::string lastFault;
+  bool muted = false;
+  bool overwater = false;  // overwater toggle for this flight
 
-    // Aircraft and pack (filled as milestones land)
-    std::string aircraft;           // "ToLiss A321neo"
-    std::string typeTags;           // "A321, A21N"
-    std::string livery;
-    std::string pack;               // active pack name
-    std::string packReason;         // why this pack
-    std::string customTags;
-    bool overwater = false;
-    std::string simbrief;           // SimBrief OFP and boarding plan, one line ("" when dormant)
-    int simbriefTone = 2;           // 0 in use, 1 ignored, 2 none
+  // dormant loaded aircraft name
+  std::string loadedAircraft;
 
-    // Live readouts (label, value), shown on the Status and Inspector tabs
-    std::vector<std::pair<std::string, std::string>> status;
-    std::vector<std::pair<std::string, std::string>> inspector;
+  // status cabin card
+  std::string stage;
+  bool calling = false;  // pull cab on the acp
+  int callAttempt = 0;
+  std::string playing, playingFenix;
+  std::string boardingNote;  // shortened boarding xp clock hot start
+  float boardingFrac = -1;   // -1 when not boarding
+  double boardingLeftSec = -1;
+  int boardingPax = 0;
 
-    std::deque<std::string> log;
+  // flight card
+  struct Flight {
+    int state = 0;  // 0 none 1 in use 2 ignored
+    std::string callsign, origin, destination;
+    std::string etd, boarding;
+    std::string line;
+    std::string airline;   // empty if the table doesnt know it
+    float routeFrac = -1;  // great circle -1 unknown
+    double toGoNm = -1;
+    std::string reason;
+  } flight;
 
-    // Purser
-    std::string stage, next, nowPlaying, music;
-    float progress = 0;
-    bool calling = false;
-    std::vector<std::string> pending;
-    struct EventRow {
-        double t = 0;
-        std::string what, outcome, detail;
-        int tone = 0;   // 0 played, 1 problem, 2 neutral
-    };
-    std::vector<EventRow> events;   // most recent first
+  // aircraft card
+  std::string aircraft;
+  std::string livery;
+  std::string pack;  // or none scanning
 
-    // Packs tab: preview a file, explain a selection
-    std::string previewing;
-    std::function<void(const std::string& path, const std::string& label)> onPreview;
-    std::function<void()> onStopPreview;
-    std::function<std::vector<std::string>(int annType, int context)> explain;
+  // timeline
+  struct Pending {
+    std::string name, fenix;  // fenix empty for milestones
+    double inSec = -1;        // -1 waits for condition
+    std::string condition;
+    std::string note;
+  };
+  std::vector<Pending> pending;
+  struct EventRow {
+    double zuluSec = -1, localSec = -1;
+    std::string name, fenix, outcome, detail;
+    int tone = 0;  // 0 played 1 problem 2 neutral
+  };
+  std::vector<EventRow> events;  // newest first
 
-    // Inspector tab: the guided probe (docs/TOLISS_DATAREFS.md)
-    struct ProbeRow {
-        std::string id, title, instruction, finding, applyKey, applyValue;
-        bool step = false, done = false;
-    };
-    std::vector<ProbeRow> probe;
-    std::string probeStep;          // id of the running step, or ""
-    float probeStepLeft = 0;        // s
-    int censusSize = 0;             // datarefs in the census snapshot (0 = none)
-    std::vector<std::string> censusChanged;
-    std::function<void(const std::string& id)> onProbeStart;
-    std::function<void(const std::string& key, const std::string& value)> onProbeApply;
-    std::function<void()> onProbeSummary, onProbeReset, onCensusSnapshot, onCensusDiff;
+  // packs now playing
+  struct Now {
+    std::string file;         // empty when nothing plays
+    double pos = 0, dur = 0;  // secs
+    bool decoding = false, paused = false, interphone = false;
+  } now;
+  std::string music;
+  std::string customTags;
+  const PackLibrary* library = nullptr;  // null till the first scan is done
+  bool scanning = false;
+  std::string packsDir;
+  // explainer only with show log
+  std::function<std::vector<std::string>(int annType, int context)> explain;
 
-    const PackLibrary* library = nullptr;   // installed packs (nullptr until the first scan finishes)
-    bool scanning = false;
-    std::string packsDir;
+  // log show log only
+  std::deque<LogLine> log;
+  std::vector<std::pair<std::string, std::string>> liveInputs;
 
-    Settings* settings = nullptr;   // edited in place by the Settings tab
+  std::string recorderPath;
 
-    // Actions (any may be empty)
-    std::function<void()> onSkip, onAdvance, onToggleMute, onToggleOverwater, onRescan, onReenable;
-    std::function<void()> onSettingsChanged;   // after Apply in the Settings tab
+  Settings* settings = nullptr;  // edited in place by settings titlebar
+
+  // actions any can be empty
+  std::function<void()> onSkip, onAdvance, onToggleMute, onToggleOverwater,
+      onRescan, onReenable;
+  std::function<void()> onSettingsChanged;  // apply save
 };
 
-// Panel-only state that survives between frames.
+// panel only state kept between frames
 struct UiState {
-    int tab = 0;
-    bool tabRestored = false;
-    Settings pending;               // Settings tab edits until Apply
-    bool pendingValid = false;
-    char logFilter[64] = {};
-    char inspectFilter[64] = {};
-    char packFilter[64] = {};
-    int explainType = 1;
-    int explainContext = 0;
-    std::vector<std::string> explainLines;
+  int tab = 0;  // panel.h ids
+  bool tabRestored = false;
+  int settingsPage = 0;
+  char logFilter[64] = {};
+  char packFilter[64] = {};
+  int explainType = 1;
+  int explainContext = 0;
+  std::vector<std::string> explainLines;
+  float cardRowH[4] = {};  // 2 aircraft card 3 band table overhead
 };
 
-} // namespace fxa::ui
+}  // namespace fxa::ui

@@ -1,8 +1,6 @@
-# FXAnnounce airline table (VP_SPEC.md § 1.4): maps MCDU flight-number prefixes (IATA) and livery folder names to
-# ICAO airline codes, the names of Airline Pack folders. Users can add or override rows in
-# Resources/plugins/AirlinePacks/airlines.tsv (same format; rows there win).
-# Columns (tab-separated): ICAO <tab> IATA <tab> names, '|'-separated <tab> optional registration prefixes, ','-separated
-# When several rows share a name (easyJet), the registration in the livery name picks the row.
+# File: native/data/airlines.tsv
+# Brief: Airline table for FXAnnounce, mapping IATA codes and livery folder names to ICAO airline codes
+
 AAL	AA	American Airlines|American
 ABY	G9	Air Arabia
 ACA	AC	Air Canada

@@ -36,7 +36,9 @@ Constants marked *(tunable)* are defaults in `FXAnnounce.ini` and are editable i
   - the display name is used in the UI;
   - tags and types are case-insensitive;
   - a file whose type is not a known announcement type (§ 2) or legacy alias (§ 1.3) is listed as "custom" and
-    never played (in Fenix it would be FAP-only).
+    never played (in Fenix it would be FAP-only). Its scan warning says it is not a Fenix announcement type and, for
+    names other announcer tools use, which Fenix type to rename it to (`BoardingStarted` → `BoardingWelcome`,
+    `Turbulence` → `SeatbeltSignOn`). The log line for each pack counts these files and names their types.
 
 ### 1.3 Legacy names
 - **Fenix:** legacy announcement names still work, but the guide doesn't list them. Community packs mostly use them.
@@ -54,6 +56,10 @@ Constants marked *(tunable)* are defaults in `FXAnnounce.ini` and are editable i
 
   Non-legacy names of these types (`CrewTakeSeats`, `CabinDim`, `CabinSecured`) carry no context and are eligible for
   both calls. Packs can narrow them with phase tags, as Fenix intends.
+
+  These are all the legacy names known (checked in November 2026 against the Fenix guides and the legacy list of the
+  community tool FCAC). Names such as `BoardingStarted` and `Turbulence` come from other announcer tools; they are
+  neither Fenix types nor Fenix legacy names and stay custom (§ 1.2).
 
 ### 1.4 Which pack is active
 - **Fenix:** the pack whose folder name equals the flight number's airline code, or the livery's `icao_airline`,
@@ -114,7 +120,7 @@ Fenix types, and the mode each one is performed in unless a mode tag overrides i
 - **FMGS flight phase:** `PreFlight`, `Takeoff`, `Climb`, `Cruise`, `Descent`, `Approach`, `GA`, `Done`, taken from
   the ToLiss FMGS phase (§ 4.2).
 - **Overwater:** `Overwater`. Fenix computes it from the route (50 NM from land). FXAnnounce takes it from the livery
-  config (`overwater = yes`) or a per-flight toggle in the UI and command (D-2).
+  config (`overwater = yes`) or a per-flight toggle (Settings → Announcements, the plugin menu and a command; D-2).
 - **Variant:** a non-negative integer (`1`, `2`…). A file without one is variant 0.
 - **Custom:** any other tag. Each custom tag must be present in the aircraft's custom-tag set:
   - the livery config `custom_tags` (Fenix key `fnx_airline_pack_custom_tags` accepted);
@@ -154,27 +160,28 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
 |---|---|---|
 | BoardingMusic | Played during boarding | Loops from the start of boarding to BoardingComplete, and from DeboardingStarted to DeboardingComplete. Paused while an announcement plays, then resumed (D-8) |
 | BoardingWelcome | Every 2–6 min during boarding | During boarding (D-1): the first 20–45 s after boarding starts, then every 2–6 min *(tunable)*. When boarding starts is set out in § 4.1a (D-18) |
-| BoardingComplete | Boarding completed | During boarding: the passenger doors close after having been open during boarding (closed for 10 s *(tunable)*), or beacon on, pushback (groundspeed > 1 kt) or an engine running (D-1) |
+| BoardingComplete | Boarding completed | When the modeled boarding time is up (§ 4.1b, D-1), or earlier on beacon on, pushback (groundspeed > 1 kt), an engine running or the slides armed by the user. A cabin call during boarding completes it within 60 s *(tunable)* (§ 4.3a). Door events never complete boarding: ToLiss's AUTO doors close on their own timer, and a door set to OPEN or reopened changes nothing |
 | ArmDoors | Beacon on, pushback, or engine start | Same, once boarding is complete. Also when the user arms the slides. Waits up to 120 s *(tunable)* for open doors to close |
-| PreSafetyBriefing | About 1 min after the doors are armed | 60 s *(tunable)* after ArmDoors ends |
+| PreSafetyBriefing | About 1 min after the doors are armed | 20–40 s *(tunable)* after the aircraft first moves once boarding is complete (the pushback, or the taxi when there is no push), and at least 60 s *(tunable)* after ArmDoors ends (D-22) |
 | SafetyBriefing | Right after PreSafetyBriefing | Same |
-| CrewTakeSeats (takeoff) | After the cabin safety check before takeoff | When a cabin check that starts as the SafetyBriefing ends has finished |
+| CabinSecured (takeoff) | Cabin secured for takeoff | When a cabin check that starts as the SafetyBriefing ends has finished, by interphone (§ 4.3), during the taxi (D-23) |
+| CrewTakeSeats (takeoff) | After the cabin safety check before takeoff | After CabinSecured, on the first *line-up signal*: landing lights ON, strobe ON (not AUTO), or a purser call once the aircraft has taxied (§ 4.2, § 4.3a). A signal during the briefing or the cabin check is kept, and the check then ends within 15 s *(tunable)*. Lights already ON when the cabin is secured count. Without a signal before takeoff thrust it expires (D-23) |
 | CabinDim (takeoff) | After crew take seats, during darkness | After CrewTakeSeats, when the sun is below 0° *(tunable)* |
-| CabinSecured (takeoff) | Cabin secured for takeoff | After CrewTakeSeats / CabinDim, by interphone (§ 4.3) |
 | *Takeoff thrust* | — | The first of: phase becomes Takeoff while rolling (groundspeed > 5 kt); thrust levers at or above the FLX/MCT detent (0.85 *(tunable)*) while rolling with an engine running; the ECAM flight phase reaches 3 (T.O. power) or 4 (80 kt); engines running on ground above 40 kt. Stops any announcement that is playing (D-6) and drops pending pre-takeoff items. The log names the signal that fired |
-| AfterTakeoff | Shortly after passing acceleration altitude | Phase becomes Climb, plus 20–60 s *(tunable)* |
+| AfterTakeoff | Shortly after passing acceleration altitude | Phase becomes Climb, plus 20–60 s *(tunable)*. At once on the pilots' "crew may leave their seats" signal: a purser call, or a NO SMOKING flick (§ 4.2), while airborne (D-25) |
 | SeatbeltSignOn | Fasten seatbelt signs turned on | Airborne off→on of the sign, steady for 5 s. Suppressed within 3 min of DescentStarted |
 | SeatbeltSignOff | Fasten seatbelt signs turned off | Airborne on→off of the sign, steady for 5 s |
 | CabinService | Cabin service started (around top of climb) | Phase becomes Cruise, plus 3–10 min *(tunable)*. Skipped if the phase is past Cruise by then, or after a decompression |
 | DescentStarted | Descent started | Phase becomes Descent (or Approach without a Descent phase), plus 30–90 s *(tunable)* |
-| CrewTakeSeats (landing) | After the cabin safety check before landing | Fires when (a) a cabin check that starts when DescentStarted ends has finished, and (b) the phase is Approach or the aircraft is below 10,000 ft AGL. Dropped below 1,000 ft AGL |
-| CabinDim (landing) | As for takeoff | As for takeoff |
-| CabinSecured (landing) | Cabin secured for landing | As for takeoff |
+| CabinSecured (landing) | Cabin secured for landing | By interphone when (a) a cabin check that starts when DescentStarted ends has finished, and (b) the phase is Approach or the aircraft is below 10,000 ft AGL *(tunable)* (D-24) |
+| CrewTakeSeats (landing) | After the cabin safety check before landing | After CabinSecured, on a NO SMOKING flick (§ 4.2) or the gear lever down, whichever comes first. A flick before the cabin check ends is kept, and the check then ends within 15 s *(tunable)* (D-24) |
+| CabinDim (landing) | As for takeoff | After CrewTakeSeats (landing), when the sun is below 0° *(tunable)* |
+| *Landing calls dropped* | — | Pending landing calls are dropped below 1,000 ft AGL *(tunable)* and on touchdown |
 | *Go-around* | — | Phase becomes GA: pending landing items are dropped. The cabin stays secured; nothing repeats |
 | AfterLanding | Spoilers stowed and landing lights off after landing | On ground after touchdown with speedbrakes stowed (and the ground spoilers retracted, when ToLiss reports them), landing lights off and groundspeed < 40 kt. Touchdown is the first of: on ground after the flight, or ECAM flight phase 8 (touchdown) or 9 (80 kt) below 50 ft AGL. Fallback: 120 s after touchdown with groundspeed < 30 kt *(tunable)* |
 | DisarmDoors | Beacon or seatbelt signs off on stand | After landing: groundspeed < 1 kt, parking brake or chocks set, and beacon off or seatbelt sign off. Also when the user disarms the slides |
 | DeboardingStarted | Deboarding started | After DisarmDoors, when the forward passenger door opens. Fallback: 90 s after DisarmDoors *(tunable)* |
-| DeboardingComplete | Deboarding completed | pax × 1.2 s × type factor (minimum 60 s) after DeboardingStarted, then the turnaround (§ 4.4) |
+| DeboardingComplete | Deboarding completed | pax × 1.2 s × type factor (minimum 60 s) after DeboardingStarted. Then the flight is complete, or the turnaround follows when it is switched on (§ 4.4) |
 | Decompression | Passenger oxygen masks deployed above 10,000 ft | Same. Pre-empts everything: playback stops, the queue empties, and CabinService is cancelled for the flight |
 
 ### 4.1a When boarding starts
@@ -197,18 +204,45 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
       doors don't have to be open. Without AC power the audio holds (D-13).
     - **Plan first seen after the boarding time** (a late load or a late OFP), or **no valid plan** (no simbrief_hub,
       no OFP, or the OFP failed its check): the doors rule below.
+    - **Clock check:** a boarding time more than 60 min *(tunable)* ahead when the plan is first evaluated means the
+      X-Plane clock doesn't match the OFP (for example, the sim is set to another time of day). The doors rule
+      applies, the OFP still selects the Airline Pack, and the Status tab says so. A jump of the X-Plane zulu clock
+      by more than 5 min before boarding starts evaluates the plan again, so setting the clock later is picked up.
     - A new OFP before boarding starts re-times the boarding. After the turnaround (§ 4.4), the next leg is timed
       from the OFP the same way.
-  - **Doors open:** boarding starts at the gate with AC power when a passenger door has been open for 15 s
-    *(tunable)*.
+  - **Doors open:** boarding starts at the gate (on ground, engines off, not moving) once there has been AC power for
+    15 s *(tunable)* while a passenger door is open, or has been open at this gate since the aircraft loaded (or since
+    the turnaround). The second case covers ToLiss's AUTO door closing on its timer before the aircraft is powered.
   - **Cabin call only:** boarding starts only on a cabin call.
   - In every mode a cabin call button at the gate starts boarding at once (§ 4.3a).
 
+### 4.1b How long boarding takes
+- **Fenix:** boarding is a simulated passenger flow; BoardingComplete plays when it ends.
+- **FXAnnounce** (D-1, D-12, D-19) models the length when boarding starts:
+  - **Natural length** D = (300 s + 6 s × pax) × type factor × (1 ± 15 % random) *(base and per-pax tunable)*. Pax:
+    ToLiss `NoPax`, else the OFP `pax_count`. About 17 min for 121 passengers on the A320.
+  - **With a valid SimBrief plan** ("Boarding starts" = SimBrief schedule, and the clock check passed) boarding aims
+    to complete 10 min *(tunable)* before the ETD: the length is the
+    time to that target, but at most 1.5 × D and at least 5 min *(tunable)*. Boarding that starts on schedule follows
+    the schedule, even when that is shorter than D.
+    - When boarding starts more than a minute after the SimBrief boarding time (a late load, or an ETD that was
+      already close, for example because the SimBrief OBT was left at its default of 30 min after dispatch) and the
+      time to the target is shorter than D, boarding is shortened and the Status tab warns: "Boarding shortened to
+      9 min: the SimBrief ETD is only 19 min away. Set the OBT later in SimBrief for a full boarding."
+    - When the ETD has already passed, boarding takes the 5-min minimum, with the same kind of warning.
+    - A new OFP during boarding re-times the end, never to less than 60 s from now.
+  - **Without a plan** (or in the other "Boarding starts" modes): D, at least 5 min.
+  - BoardingComplete fires when the time is up, whatever the doors are doing. Beacon, pushback, an engine running,
+    the slides armed, a cabin call (§ 4.3a) or Advance end boarding sooner.
+  - After BoardingComplete, a door that is opened again doesn't restart boarding. ArmDoors still waits for the doors
+    to close (§ 4.1).
+
 ### 4.2 Sim inputs
 - **FMGS phase:** `AirbusFBW/APPhase`, mapped to PreFlight…Done (encoding in `docs/TOLISS_DATAREFS.md`).
-  - If the dataref is missing, or it still reads PreFlight 30 s *(tunable)* after lift-off (the FMGS was never
-    initialized), an estimated phase is used instead (D-20), for the triggers and for the phase tags. The switch is
-    logged once.
+  - If the dataref is missing, or it still reads PreFlight 30 s *(tunable)* after lift-off and never read anything
+    else during the flight (the FMGS was never initialized), an estimated phase is used instead (D-20), for the
+    triggers and for the phase tags. The switch is logged once. ToLiss sets the phase back from Done to PreFlight
+    when the engines are shut down after landing; that doesn't count.
   - The estimate uses ToLiss's QPAC flight phase when it is known: lift-off (6) is Takeoff; 1500 ft and flaps up
     (7–8) is Climb, refined to Cruise or Descent by altitude and vertical speed; the approach phases (9–10) are
     Approach; touchdown and after (11 and up) is Done. Without it, the estimate uses the ground state, altitude,
@@ -218,11 +252,24 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
   the ground spoilers (`AirbusFBW/SDSpoilerArray`). They back up the ground events in § 4.1; APPhase stays the
   phase source when it works. Lift-off is the first of: 5 s above 50 ft AGL, or ECAM flight phase 5 or more after
   takeoff thrust.
+- **Ground spoilers:** `AirbusFBW/SDSpoilerArray` holds the ECAM status of each spoiler panel: 0 retracted,
+  1 extended, 2 not available (no hydraulic pressure). The ground spoilers are out when entries 0 and 1 (spoiler 1
+  left and right, which only the ground spoiler function uses) both read 1. When they read 2 the state is unknown.
+- **Line-up lights:** landing lights ON is `sim/cockpit2/switches/landing_lights_on` (1 only with the switch at ON;
+  extended but OFF reads 0). Strobe ON is `AirbusFBW/OHPLightSwitches` entry 7 *(tunable)* at 2; 1 is AUTO.
+- **NO SMOKING flick:** `AirbusFBW/NoSmokingSignsOn` goes lit → unlit → lit, unlit for at most 10 s *(tunable)*. The
+  pilots use it to signal the cabin (D-25). Seatbelt sign changes are not flicks; they stay SeatbeltSignOn/Off.
+- **Gear lever:** `AirbusFBW/GearLever`, 1 = down.
+- **Taxied:** after ArmDoors, on the ground with an engine running above 5 kt.
 - **Refueling:** on the ground, total fuel mass rising by more than 2 kg/s and less than 150 kg/s *(both tunable)*
   within the last 60 s. The upper bound ignores instant fuel loads from the ISCS.
 - **Darkness:** sun elevation below 0° *(tunable)* (D-15).
 - **Time of day:** X-Plane local time at the aircraft, `sim/time/local_time_sec` (D-16).
 - **Power:** cabin PA and music need AC power. Without it, nothing plays and the queue holds (D-13).
+- **ACP:** a reception channel is on when its `AirbusFBW/ACP{1,2,3}KnobPush` entry is nonzero (PA 15, CAB 6 on every
+  ToLiss model, from the cockpit objects). Its volume is the knob's rotation: on the A319/A320/A321
+  `ckpt/oh/pa/N/anim` and `ckpt/oh/cab/N/anim` (0–270°), elsewhere `AirbusFBW/ACPNRotaryPositions` at the same index
+  (0–1). The highest volume of the ACPs that have the channel on is used.
 - **SatCom antenna:** `AirbusFBW/SatComObjInhibit`, which reflects the ISCS "HAS SATCOM ANTENNA" setting
   (YES/AUTO/NO) after ToLiss resolves it.
 
@@ -233,18 +280,30 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
 - **OFP check:** the OFP is used only if its origin airport (looked up in X-Plane's navigation data) is within 5 NM
   *(tunable)* of the aircraft. A stale OFP (`sbh/stale`) is used if it passes. A failed check is logged and shown in
   the Status tab, and the OFP is ignored for both boarding and the pack.
-- **Used for:** the boarding time (§ 4.1a) and the Airline Pack (§ 1.4). The CDM TOBT is not used.
+- **During the flight:** the check applies until takeoff.
+  - An OFP accepted at takeoff stays this flight's OFP and is no longer checked against its origin. The Status tab
+    reads "DLH432 EDDM-LFMN: en route to LFMN, 312 NM" (the destination is looked up like the origin).
+  - **Returning:** when the distance to the origin has dropped 10 NM *(tunable)* below its largest value since
+    takeoff and the distance to the destination has grown 10 NM above its smallest value since takeoff, the Status
+    reads "returning to EDDM, 23 NM". Both conditions are needed, so a departure route that loops back over the
+    airport doesn't trip it. On the ground within 5 NM of the origin, the OFP passes the origin check again.
+  - On the ground within 5 NM *(tunable)* of the destination, the Status reads "arrived at LFMN".
+  - An OFP with a new `sbh/seqno` that arrives meanwhile is the next leg's: the Status names it, and it is checked
+    as above once the aircraft is on the ground at its origin.
+- **Used for:** the boarding time (§ 4.1a), the Airline Pack (§ 1.4) and the next flight when the turnaround is off
+  (§ 4.4). The CDM TOBT is not used.
 
 ### 4.3 Interphone (CabinSecured)
 - **Fenix:** the purser calls the cockpit. To answer, pull the CAB reception knob and press ATT; volume follows the
   knob. Unanswered calls are retried up to 3 times, then the purser gives up.
 - **FXAnnounce:** any announcement whose chosen file is in Interphone mode goes through the cabin call. That is
-  CabinSecured by default, or any file tagged `[Interphone]`. A two-tone cabin chime, generated in code, sounds in the
-  cockpit (D-7). The call is answered when
+  CabinSecured by default, or any file tagged `[Interphone]`. The cockpit call buzzer, generated in code (D-7),
+  sounds in the cockpit: a 2.8 s buzz at 300 Hz with odd harmonics and a 25 Hz flutter, modeled on a recording of the
+  A320's. The call is answered when
   any ACP's CAB reception knob is pulled out. The message then plays on the cockpit headset bus at that knob's
-  volume. Each unanswered try lasts 30 s *(tunable)*, then the chime repeats, up to 3 retries, after which the call
-  is dropped. Interphone items expire like any other: a pre-takeoff call expires at takeoff thrust, and a landing
-  call below 1,000 ft AGL.
+  volume. Each unanswered try lasts 30 s *(tunable)*, then the buzzer sounds again, up to 3 retries, after which the
+  call is dropped. Interphone items expire like any other: a pre-takeoff call expires at takeoff thrust, and a landing
+  call below 1,000 ft AGL. The interphone volume follows the CAB knob's rotation (§ 4.2), never below 0.15.
 
 ### 4.3a Cockpit cabin call buttons
 - **Fenix:** call buttons expedite some long-running purser actions: the safety briefing and the cabin safety
@@ -254,21 +313,38 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
   `mech` calls the ground mechanic and is ignored. FXAnnounce observes them with pass-through command handlers that
   always let ToLiss handle the press. A call:
   1. **At the gate before boarding** (on ground, engines off, AC power): starts boarding (D-18).
-  2. **After ArmDoors and before the takeoff calls:** the cabin check before takeoff takes at most 15 s
+  2. **During boarding:** boarding completes within 60 s *(tunable)* of the call (D-21).
+  3. **After ArmDoors, before the aircraft has taxied (§ 4.2):** the cabin check before takeoff takes at most 15 s
      *(tunable)* from the call, or from the end of the safety briefing if the call came first. The briefing audio
      itself plays to the end.
-  3. **After the descent starts and before the landing calls:** the same for the cabin check before landing. The
-     landing calls still wait for the approach phase or the ready height.
+  4. **Once taxied, before takeoff:** the line-up signal (§ 4.1, D-23): CrewTakeSeats and CabinDim follow
+     CabinSecured. A cabin check still running ends within 15 s.
+  5. **Airborne, before AfterTakeoff has played:** AfterTakeoff plays now (D-25).
+  6. **After the descent starts and before the landing calls:** the same as 3 for the cabin check before landing.
+     CabinSecured still waits for the approach phase or the ready height, and CrewTakeSeats for a NO SMOKING flick
+     or the gear down.
 
   Otherwise a call does nothing; FXAnnounce logs every press.
 
 ### 4.4 Flight life cycle
-- **Turnaround:** after DeboardingComplete, the purser resets for the next leg. Pack resolution is unlocked again.
-  With an OFP for the next leg (its origin is this airport and its boarding time is still ahead) the next boarding
-  follows the schedule (§ 4.1a). Otherwise the doors rule applies with a gap: the next boarding starts 300 s later
-  *(tunable)* if the doors stay open, or as soon as the doors close and reopen. The variant keeps its value (§ 3.4).
-- **Starting mid-flight:** if the plugin activates with the aircraft already airborne, or on the ground with engines
-  running or moving, every event that would already have happened is marked done, so nothing fires late.
+- **Flight complete** (setting "Turnaround" off, the default, D-26): after DeboardingComplete the stage is "Flight
+  complete" and nothing more plays. A new SimBrief OFP (a new `sbh/seqno`) that passes the origin check here starts
+  the next flight: the purser resets, pack resolution is unlocked, and boarding follows the OFP (§ 4.1a). A situation
+  load, a teleport or an aircraft reload also starts a new flight.
+- **Turnaround** (setting on): after DeboardingComplete, the purser resets for the next leg. Pack resolution is
+  unlocked again. With an OFP for the next leg (its origin is this airport and its boarding time is still ahead) the
+  next boarding follows the schedule (§ 4.1a). Otherwise the doors rule applies with a gap: the next boarding starts
+  300 s later *(tunable)* if a door has been open at this gate since the turnaround (ToLiss's AUTO door may have
+  closed again by then), or as soon as a door closes and opens again. The variant keeps its value (§ 3.4).
+- **Starting mid-flight:** the state is taken 10 s after the plugin activates (or after a situation load), because
+  X-Plane may still be settling the aircraft (Run2 showed 0.7 kt on the first tick). Every event that would already
+  have happened is then marked done, so nothing fires late:
+  - airborne: everything up to the current phase;
+  - on the ground and moving: boarding, the doors and the safety briefing;
+  - on the ground, parked, with an engine running: boarding and the doors. The Status tab says "Started with engines
+    running: boarding skipped. Shut the engines down at the gate to board." When every engine is off at the gate
+    (stationary, parking brake or chocks) before the first takeoff, the purser starts over at the gate and boarding
+    works as usual.
 - **Situation load or teleport** (position jumps more than 1 NM in one tick): audio stops and the state is
   re-inferred as for a mid-flight start.
 - **Pause:** audio pauses with the sim and resumes from the same point, and timers freeze. Replay mutes all audio.
@@ -276,35 +352,48 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
 ### 4.5 Hearing the cabin in the cockpit
 - **Fenix:** cabin audio is heard in the cockpit through the open cockpit door, via the ACP PA reception knob, or by
   walking into the cabin.
-- **FXAnnounce:** cabin PA gain = master × PA volume × ToLiss volume × max(floor, door leak × door open fraction,
-  PA knob pulled ? PA knob volume : 0, camera aft of the cockpit door ? 1 : 0). An external view uses the exterior
-  gain. The floor makes sure announcements are never fully missed (D-14). All factors are *tunable*.
+- **FXAnnounce** plays every cabin sound (PA and music) twice in step: a **clear** voice and a **muffled** voice,
+  low-passed at 800 Hz *(tunable)* as if heard through the closed door (D-14). With f = the door open fraction:
+  - clear = max(door leak × f, PA knob pulled ? PA knob volume : 0);
+  - muffled = through-the-door level × (1 − f), 0.10 by default;
+  - the camera aft of the cockpit door: clear 1, muffled 0;
+  - an external view: clear = the exterior gain, muffled 0.
+
+  Each voice is then scaled by master × PA (or music) volume × ToLiss volume. The muffled level makes sure
+  announcements are never fully missed. With muffling off *(tunable)*, there is one voice at
+  max(through-the-door level, clear). All factors are *tunable*. Both voices use the PA bus *(tunable)*.
   - **Door open fraction:** ToLiss's own cockpit-door sound blend (`AirbusFBW/fmod/vol/FwdCockpitDoorBlend`) when it
-    is available, otherwise the door angle.
+    is available, otherwise the door angle (`ckpt/door`, 0–80°).
   - **ToLiss volume:** when ToLiss's ISCS "Ovrd XP Int/Ext Vol" is on, ToLiss's internal volume slider
-    (`AirbusFBW/fmod/vol/Internal`) scales the PA, music, chime and interphone. Until the probe has identified the
-    dataref that holds the override switch, this factor is 1.
+    (`AirbusFBW/fmod/vol/Internal`) scales the PA, music, call buzzer and interphone. Until the dataref that holds the
+    override switch is identified (`[toliss] volume_override_ref`, TOLISS_DATAREFS.md), this factor is 1.
 
 ## 5. Deviations from Fenix
 | Id | Deviation | Why |
 |---|---|---|
-| D-1 | Boarding is driven by the ToLiss AUTO passenger doors, not by a simulated passenger flow | ToLiss doesn't simulate boarding |
+| D-1 | Boarding lasts a modeled time (§ 4.1b), not a simulated passenger flow. Door events, including ToLiss's AUTO door closing on its timer, never complete it | ToLiss doesn't simulate boarding, and its AUTO doors close about 13 min after the aircraft loads whatever the boarding is doing (probe flight Run1) |
 | D-2 | `[Overwater]` comes from the livery config or a manual per-flight toggle | No land/water data along the route in X-Plane or ToLiss |
 | D-3 | No FAP: Manual and Prerecorded are both cabin PA. No CABIN READY indication, EFB wallpaper or FAP screensaver | ToLiss has no FAP |
 | D-4 | Any ICAO type designator is an aircraft tag. Family tags are hierarchical and the most specific is preferred | Community packs tag A21N, A20N, B738… |
 | D-5 | A fitted ToLiss SatCom antenna adds `WiFi` and `USB` custom tags | ToLiss models no cabin connectivity. The antenna is the nearest signal (owner's choice) |
 | D-6 | Takeoff thrust stops the announcement that is playing | Owner's choice: sterile cabin at takeoff |
-| D-7 | The interphone call chime is generated in code | Packs don't carry the chime. ToLiss's own chime isn't triggered (v1 is read-only) |
+| D-7 | The cockpit call buzzer for interphone calls is generated in code, modeled on a recording of the A320's (§ 4.3) | Packs don't carry it. ToLiss's own sounds aren't triggered (v1 is read-only) |
 | D-8 | Boarding music also plays during deboarding, and pauses rather than mixes under announcements | Owner's choice |
 | D-9 | Pack sources: sidecar, central mapping, SimBrief OFP callsign, MCDU flight number, livery-name heuristics | ToLiss liveries have no `icao_airline` field |
 | D-10 | Pack folders may have any name (mapping only) and may sit inside wrapper folders | Packs are often distributed that way |
 | D-11 | The legacy-name table in § 1.3 is ours | Fenix doesn't publish one |
-| D-12 | The cabin-check, deboarding and delay timings are our own model | Fenix doesn't publish its model |
+| D-12 | The boarding length, cabin-check, deboarding and delay timings are our own model (§ 4.1, § 4.1b) | Fenix doesn't publish its model |
 | D-13 | PA and music need AC power | Real cabin systems; cold-and-dark at the gate stays silent |
-| D-14 | Hearing model with a minimum floor; it follows ToLiss's cockpit-door sound blend and internal volume | Owner's choice |
+| D-14 | Hearing model: a muffled (low-passed) voice through the closed cockpit door at a minimum level, crossfading to the clear voice with the door, the PA knob and the camera; it follows ToLiss's cockpit-door sound blend and internal volume, and the ACP knob volumes (§ 4.5) | Owner's choice; X-Plane has no cockpit-door sound path of its own |
 | D-15 | Darkness is decided by sun elevation | Fenix says "hours of darkness" without a definition |
 | D-16 | Time-of-day tags use X-Plane's local time | X-Plane provides it at the aircraft position |
 | D-17 | Not in v1: purser actions (arming slides, cabin lights, lavatories, doors) and FAP pre-recorded playback | Announcements first. Slides and lights are planned through the `CabinActions` interface |
-| D-18 | Boarding starts at the SimBrief boarding time (ETD − lead time); after a late load or without a valid OFP, when a door has been open 15 s; at once on a cabin call button. Settings: doors open only, or cabin call only (§ 4.1a) | Owner's choice: ToLiss has no boarding trigger, and real boarding starts 30–40 min before departure |
-| D-19 | The boarding lead time model: a per-type range, positioned by the load factor (§ 4.1a) | Owner's choice; Fenix doesn't publish its model |
+| D-18 | Boarding starts at the SimBrief boarding time (ETD − lead time); after a late load, without a valid OFP, or when the boarding time is more than 60 min ahead (clock mismatch), once a door is or has been open at the gate with AC power for 15 s; at once on a cabin call button. Settings: doors open only, or cabin call only (§ 4.1a) | Owner's choice: ToLiss has no boarding trigger, and real boarding starts 30–40 min before departure |
+| D-19 | The boarding lead time model: a per-type range, positioned by the load factor (§ 4.1a). With a plan, boarding aims to complete 10 min before the ETD and is shortened, with a warning, when the ETD is too close (§ 4.1b) | Owner's choice; Fenix doesn't publish its model. SimBrief's default OBT (30 min after dispatch) often leaves too little time |
 | D-20 | An estimated phase replaces APPhase when the FMGS was never initialized (§ 4.2) | Without it no flight-phase event would fire; Fenix assumes an initialized FMGS |
+| D-21 | A cabin call during boarding completes it within 60 s (§ 4.3a) | Owner's choice; Fenix expedites only the safety briefing and the cabin checks |
+| D-22 | The safety briefing starts 20–40 s after the aircraft first moves once boarding is complete, and at least 60 s after ArmDoors (§ 4.1) | Owner's choice (Run2): 1 min after ArmDoors, half the briefing was over before the pushback tug was connected |
+| D-23 | Before takeoff, CabinSecured comes when the cabin check ends (during the taxi); CrewTakeSeats and CabinDim wait for a line-up signal (landing lights ON, strobe ON, or a purser call once taxied) and expire without one (§ 4.1, § 4.3a) | Owner's choice (Run2): all three played right after engine start, 11 min before takeoff. Crews are called to their seats at line-up |
+| D-24 | Before landing, CabinSecured comes when the cabin check ends in the approach window; CrewTakeSeats and CabinDim wait for a NO SMOKING flick or the gear down (§ 4.1) | Owner's choice (Run2): the landing calls came at 10,000 ft, 9 min before touchdown |
+| D-25 | Pilot signals: a purser call while airborne or a NO SMOKING flick plays AfterTakeoff at once ("crew may leave their seats") (§ 4.1, § 4.2) | Owner's choice: airlines signal the cabin with a chime or a sign flick |
+| D-26 | The turnaround is a setting, off by default. Off, the flight ends after DeboardingComplete, and a new SimBrief OFP from this airport starts the next one (§ 4.4) | Owner's choice: not everyone flies legs back to back |

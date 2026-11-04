@@ -1,5 +1,8 @@
-/* libogg's generated config_types.h, written by hand for the platforms where os_types.h includes it
-   (Linux and other non-Windows, non-Apple targets). Fixed-width types from <stdint.h>. */
+/**
+ * @file config_types.h
+ * @brief Configuration file for fixed-width integer types
+ */
+
 #ifndef __CONFIG_TYPES_H__
 #define __CONFIG_TYPES_H__
 
