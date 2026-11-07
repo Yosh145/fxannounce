@@ -84,6 +84,7 @@ class App {
   void loadLiveryConfig();
   void updateAircraftType();
   void resolvePackNow(const char* why);
+  void updateVariant(bool reroll);
   std::vector<std::string> customTags() const;
   SelectContext selectContext() const;
   void resetFlight(const char* why);

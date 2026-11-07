@@ -240,6 +240,17 @@ std::optional<std::string> Player::play(AnnType type, CallContext ctx,
             s.file->relPath.c_str(), err.c_str());
     return std::nullopt;
   }
+  if (s.timeFallback || (s.variantFallback && s.variant != 0)) {
+    std::string note;
+    if (s.timeFallback)
+      note += std::string(" nearest time of day (no ") +
+              timeOfDayName(base_.time) + " file)";
+    if (s.variantFallback && s.variant != 0)
+      note += " variant " + std::to_string(s.variant) + " (variant " +
+              std::to_string(base_.variant) + " has none)";
+    logInfo("%s/%s:%s", pack_->name.c_str(), s.file->relPath.c_str(),
+            note.c_str());
+  }
   Voice& v = voices_[kPa];
   clearVoice(v);
   v.kind = interphone ? SoundKind::Interphone : SoundKind::Pa;

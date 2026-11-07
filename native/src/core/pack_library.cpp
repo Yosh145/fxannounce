@@ -1,6 +1,7 @@
 #include "core/pack_library.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <filesystem>
 
@@ -148,6 +149,29 @@ int Pack::countOf(AnnType t) const {
   return static_cast<int>(
       std::count_if(files.begin(), files.end(),
                     [&](const SoundFile& f) { return f.type == t; }));
+}
+
+std::vector<int> Pack::variantChoices() const {
+  std::vector<int> out;
+  std::array<unsigned char, kAnnTypeCount> seen{};
+  for (const SoundFile& f : files) {
+    if (!f.type) continue;
+    unsigned char& s = seen[static_cast<size_t>(*f.type)];
+    if (f.variants.empty()) s |= 1;
+    for (int v : f.variants) {
+      if (v == 0) {
+        s |= 1;
+        continue;
+      }
+      s |= 2;
+      if (std::find(out.begin(), out.end(), v) == out.end()) out.push_back(v);
+    }
+  }
+  const bool zeroCompetes = std::any_of(seen.begin(), seen.end(),
+                                        [](unsigned char s) { return s == 3; });
+  if (out.empty() || zeroCompetes) out.push_back(0);
+  std::sort(out.begin(), out.end());
+  return out;
 }
 
 const Pack* PackLibrary::find(std::string_view name) const {

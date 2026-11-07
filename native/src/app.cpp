@@ -409,6 +409,7 @@ void App::pollScan() {
   if (purser_ && purser_->packLocked() && !lockedName.empty()) {
     if (const Pack* same = library_->find(lockedName)) {
       resolution_.pack = same;
+      updateVariant(false);
       return;
     }
   }
@@ -469,6 +470,10 @@ SelectContext App::selectContext() const {
   c.aircraft = type_;
   c.refueling = refuel_.refueling(sim_.t);
   c.time = timeOfDayAt(sim_.localTimeSec);
+  if (std::isfinite(sim_.localTimeSec)) {
+    c.localHour = std::fmod(sim_.localTimeSec / 3600.0, 24.0);
+    if (c.localHour < 0) c.localHour += 24.0;
+  }
   c.phase = purser_ ? purser_->phase() : Phase::PreFlight;
   c.overwater = overwater_;
   c.customTags = customTags();
@@ -691,13 +696,25 @@ void App::resolvePackNow(const char* why) {
     logSummary("airline pack: %s (%s)", r.pack ? r.pack->name.c_str() : "none",
                r.reason.c_str());
   const std::string name = r.pack ? r.pack->name : std::string();
-  if (name != activePackName_) {
-    // 3.4 one variant per session reroll on pack change
-    activePackName_ = name;
-    variant_ = r.pack ? pickVariant(*r.pack, rng_) : 0;
-    if (r.pack && r.pack->maxVariant > 0)
-      logInfo("pack %s: variant %d of 0-%d", name.c_str(), variant_,
-              r.pack->maxVariant);
+  const bool packChanged = name != activePackName_;
+  activePackName_ = name;
+  updateVariant(packChanged);
+}
+
+void App::updateVariant(bool reroll) {
+  const Pack* pack = resolution_.pack;
+  const std::vector<int> choices =
+      pack ? pack->variantChoices() : std::vector<int>{0};
+  if (!reroll &&
+      std::find(choices.begin(), choices.end(), variant_) != choices.end())
+    return;
+  variant_ = pack ? pickVariant(*pack, rng_) : 0;
+  if (pack && (choices.size() > 1 || variant_ != 0)) {
+    std::string list;
+    for (int v : choices)
+      list += (list.empty() ? "" : ", ") + std::to_string(v);
+    logInfo("pack %s: variant %d (the pack has %s)", pack->name.c_str(),
+            variant_, list.c_str());
   }
 }
 
@@ -1060,9 +1077,16 @@ void App::refreshModel() {
         (c.overwater ? ", overwater" : "") +
         (c.customTags.empty() ? "" : ", tags " + join(c.customTags, ",")));
     if (sel.file)
-      lines.push_back("-> plays " + sel.file->relPath +
-                      fmt(" (score %.1f)", sel.score) +
-                      (sel.fellBackToVariant0 ? ", variant 0 fallback" : ""));
+      lines.push_back(
+          "-> plays " + sel.file->relPath + fmt(" (score %.1f)", sel.score) +
+          (sel.variantFallback ? ", variant " + std::to_string(sel.variant) +
+                                     " (nothing fits in variant " +
+                                     std::to_string(c.variant) + ")"
+                               : std::string()) +
+          (sel.timeFallback ? std::string(", nearest time of day ") +
+                                  timeOfDayName(sel.time) + " (nothing for " +
+                                  timeOfDayName(c.time) + ")"
+                            : std::string()));
     else
       lines.push_back("-> nothing eligible: the announcement is skipped");
     for (const Candidate& cd : sel.candidates)

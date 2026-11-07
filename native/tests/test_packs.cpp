@@ -185,9 +185,14 @@ TEST_CASE("selection: most matching tags wins, every category must hold") {
   c.refueling = true;
   CHECK(pick(dlh, AnnType::BoardingWelcome, c) ==
         "BoardingWelcome[Refueling][Evening].ogg");
-  c.time = TimeOfDay::Night;
+  c.time = TimeOfDay::Night;  // nothing for night d-28 nearest time
+  c.localHour = 1.0;
   CHECK(pick(dlh, AnnType::BoardingWelcome, c) ==
-        "(none)");  // nothing for night no untagged file
+        "BoardingWelcome[Refueling][Evening].ogg");
+  c.localHour = 5.0;
+  CHECK(pick(dlh, AnnType::BoardingWelcome, c) ==
+        "BoardingWelcome[Refueling][Morning].ogg");
+  // the untagged file fits at night so no time fallback
   CHECK(pick(dlh, AnnType::DescentStarted, c) == "DescentSeatbelts.ogg");
   c.time = TimeOfDay::Evening;
   CHECK(pick(dlh, AnnType::DescentStarted, c) ==
@@ -265,12 +270,216 @@ TEST_CASE("selection: variants and the variant 0 fallback") {
   c.variant = 0;
   CHECK(pick(ual, AnnType::BoardingComplete, c) == "BoardingComplete.ogg");
   CHECK(pick(ual, AnnType::AfterTakeoff, c) ==
-        "(none)");  // only variant 1 exists
+        "AfterTakeoff[1].ogg");  // only variant 1 exists d-27
+  // boardingcomplete has 0 and 1 so 0 is a real choice
+  CHECK(ual.variantChoices() == std::vector<int>{0, 1});
   Rng rng(7);
+  bool saw[2] = {false, false};
   for (int k = 0; k < 50; ++k) {
     const int v = pickVariant(ual, rng);
-    CHECK((v == 0 || v == 1));
+    REQUIRE((v == 0 || v == 1));
+    saw[v] = true;
   }
+  CHECK((saw[0] && saw[1]));
+}
+
+TEST_CASE("selection: a BAW-style pack plays every call in every variant") {
+  // the real baw pack: some calls only as [1]-[3] or [1]-[2], no untagged
+  const Pack baw = makePack("BAW", {"AfterLanding[Afternoon].ogg",
+                                    "AfterLanding[Evening].ogg",
+                                    "AfterLanding[Morning].ogg",
+                                    "AfterTakeoff[Afternoon][1].ogg",
+                                    "AfterTakeoff[Afternoon][2].ogg",
+                                    "AfterTakeoff[Evening][1].ogg",
+                                    "AfterTakeoff[Evening][2].ogg",
+                                    "AfterTakeoff[Morning][1].ogg",
+                                    "AfterTakeoff[Morning][2].ogg",
+                                    "ArmDoors[1].ogg",
+                                    "ArmDoors[2].ogg",
+                                    "ArmDoors[3].ogg",
+                                    "BoardingComplete[1].ogg",
+                                    "BoardingComplete[2].ogg",
+                                    "BoardingComplete[3].ogg",
+                                    "BoardingWelcome[Afternoon].ogg",
+                                    "BoardingWelcome[Evening].ogg",
+                                    "BoardingWelcome[Morning].ogg",
+                                    "BoardingWelcome[Refueling].ogg",
+                                    "CabinDimTakeoff.ogg",
+                                    "CallCabinSecureLanding.ogg",
+                                    "CallCabinSecureTakeoff.ogg",
+                                    "CrewSeatsLanding.ogg",
+                                    "CrewSeatsTakeoff.ogg",
+                                    "DescentSeatbelts.ogg",
+                                    "DisarmDoors[1].ogg",
+                                    "DisarmDoors[2].ogg",
+                                    "DisarmDoors[3].ogg",
+                                    "DisembarkStarted.ogg",
+                                    "FastenSeatbelt.ogg",
+                                    "PreSafetyBriefing[1][A319].ogg",
+                                    "PreSafetyBriefing[1][A320].ogg",
+                                    "PreSafetyBriefing[1][A321].ogg",
+                                    "PreSafetyBriefing[2][A319].ogg",
+                                    "PreSafetyBriefing[2][A320].ogg",
+                                    "PreSafetyBriefing[2][A321].ogg",
+                                    "SafetyBriefing.ogg"});
+  for (const SoundFile& f : baw.files) CHECK(f.type);
+
+  // 3.4 d-27 never 0 and every real variant comes up
+  CHECK(baw.variantChoices() == std::vector<int>{1, 2, 3});
+  Rng rng(11);
+  bool saw[4] = {false, false, false, false};
+  for (int k = 0; k < 200; ++k) {
+    const int v = pickVariant(baw, rng);
+    REQUIRE((v >= 1 && v <= 3));
+    saw[v] = true;
+  }
+  CHECK((saw[1] && saw[2] && saw[3]));
+
+  const AnnType always[] = {
+      AnnType::ArmDoors,          AnnType::BoardingComplete,
+      AnnType::DisarmDoors,       AnnType::AfterTakeoff,
+      AnnType::PreSafetyBriefing, AnnType::SafetyBriefing,
+      AnnType::DescentStarted,    AnnType::DeboardingStarted,
+      AnnType::SeatbeltSignOn,    AnnType::BoardingWelcome,
+      AnnType::AfterLanding};
+  // night has no baw files d-28 covers it
+  const TimeOfDay day[] = {TimeOfDay::Morning, TimeOfDay::Afternoon,
+                           TimeOfDay::Evening, TimeOfDay::Night};
+  // 0 stays covered in case a stale variant survives
+  for (int v = 0; v <= 3; ++v)
+    for (Family fam : {Family::A319, Family::A320, Family::A321})
+      for (bool neo : {false, true})
+        for (TimeOfDay t : day)
+          for (AnnType type : always) {
+            if (fam == Family::A319 && neo) continue;
+            SelectContext c = ctxFor(fam, neo, t);
+            c.variant = v;
+            for (unsigned seed = 1; seed <= 3; ++seed) {
+              Rng r(seed);
+              const Selection s = selectSound(baw, type, c, r);
+              INFO("variant ", v, " type ", annTypeName(type), " time ",
+                   timeOfDayName(t), " aircraft ", c.aircraft.label);
+              REQUIRE(s.file);
+              if (!s.file->variants.empty())
+                CHECK(s.file->hasVariant(s.variant));
+            }
+          }
+
+  SelectContext c = ctxFor(Family::A320, false, TimeOfDay::Morning);
+  c.variant = 2;  // the session variant is used where it exists
+  CHECK(pick(baw, AnnType::ArmDoors, c) == "ArmDoors[2].ogg");
+  CHECK(pick(baw, AnnType::AfterTakeoff, c) == "AfterTakeoff[Morning][2].ogg");
+  CHECK(pick(baw, AnnType::PreSafetyBriefing, c) ==
+        "PreSafetyBriefing[2][A320].ogg");
+  CHECK(pick(baw, AnnType::SafetyBriefing, c) == "SafetyBriefing.ogg");
+  c.variant = 3;  // no [3] and no untagged file: [1] or [2]
+  Rng r(5);
+  const Selection s = selectSound(baw, AnnType::AfterTakeoff, c, r);
+  REQUIRE(s.file);
+  CHECK(s.variantFallback);
+  CHECK((s.variant == 1 || s.variant == 2));
+  CHECK(pick(baw, AnnType::ArmDoors, c) == "ArmDoors[3].ogg");
+  // d-28 night: nearest time of day, the session variant kept
+  c.variant = 2;
+  c.time = TimeOfDay::Night;
+  c.localHour = 1.0;
+  CHECK(pick(baw, AnnType::AfterTakeoff, c) == "AfterTakeoff[Evening][2].ogg");
+  CHECK(pick(baw, AnnType::BoardingWelcome, c) ==
+        "BoardingWelcome[Evening].ogg");
+  CHECK(pick(baw, AnnType::AfterLanding, c) == "AfterLanding[Evening].ogg");
+  c.localHour = 5.5;
+  CHECK(pick(baw, AnnType::AfterTakeoff, c) == "AfterTakeoff[Morning][2].ogg");
+  CHECK(pick(baw, AnnType::AfterLanding, c) == "AfterLanding[Morning].ogg");
+  {
+    Rng r2(1);
+    const Selection n = selectSound(baw, AnnType::AfterLanding, c, r2);
+    CHECK(n.timeFallback);
+    CHECK(n.time == TimeOfDay::Morning);
+    CHECK(n.variant == 0);  // untagged the normal fenix fallback
+  }
+  // a refuelling file fits at night so it plays, no fallback
+  c.refueling = true;
+  CHECK(pick(baw, AnnType::BoardingWelcome, c) ==
+        "BoardingWelcome[Refueling].ogg");
+}
+
+TEST_CASE("time of day: nearest when no file fits (D-28)") {
+  using T = TimeOfDay;
+  CHECK(nearestTimesOfDay(T::Night, 1.0) ==
+        std::vector<T>{T::Evening, T::Morning, T::Afternoon});
+  CHECK(nearestTimesOfDay(T::Night, 5.0) ==
+        std::vector<T>{T::Morning, T::Evening, T::Afternoon});
+  CHECK(nearestTimesOfDay(T::Night, 0.0) ==
+        std::vector<T>{T::Evening, T::Morning, T::Afternoon});
+  // 09:00 is 3 h from both: the coming afternoon first
+  CHECK(nearestTimesOfDay(T::Morning, 9.0) ==
+        std::vector<T>{T::Afternoon, T::Night, T::Evening});
+  CHECK(nearestTimesOfDay(T::Evening, 18.5) ==
+        std::vector<T>{T::Afternoon, T::Night, T::Morning});
+  // no clock the middle of the period
+  CHECK(nearestTimesOfDay(T::Night, -1) ==
+        std::vector<T>{T::Morning, T::Evening, T::Afternoon});
+  CHECK(nearestTimesOfDay(T::Afternoon, 37.0) ==
+        std::vector<T>{T::Morning, T::Evening, T::Night});  // 13:00
+
+  SelectContext c = ctxFor(Family::A320, false, T::Morning);
+  c.localHour = 9.0;
+  // eju style afternoon only
+  const Pack eju = makePack("EJU", {"AfterLanding[Afternoon].ogg"});
+  CHECK(pick(eju, AnnType::AfterLanding, c) == "AfterLanding[Afternoon].ogg");
+  // an untagged file that fits beats another time of day
+  const Pack mix =
+      makePack("MIX", {"BoardingWelcome.ogg", "BoardingWelcome[Evening].ogg"});
+  c.time = T::Night;
+  c.localHour = 2.0;
+  CHECK(pick(mix, AnnType::BoardingWelcome, c) == "BoardingWelcome.ogg");
+  // only time is relaxed: aircraft still has to match
+  const Pack a319 = makePack("ACF", {"SafetyBriefing[Morning][A319].ogg"});
+  CHECK(pick(a319, AnnType::SafetyBriefing, c) == "(none)");
+  // untimed files that fail other tags never get a time fallback
+  const Pack refuel = makePack("REF", {"BoardingWelcome[Refueling].ogg"});
+  CHECK(pick(refuel, AnnType::BoardingWelcome, c) == "(none)");
+  // the explainer candidates come from the pass that played
+  Rng r(1);
+  const Selection s = selectSound(eju, AnnType::AfterLanding,
+                                  ctxFor(Family::A320, false, T::Night), r);
+  REQUIRE(s.file);
+  CHECK(s.timeFallback);
+  CHECK(s.time == T::Afternoon);
+  REQUIRE(s.candidates.size() == 1);
+  CHECK(s.candidates[0].eligible);
+}
+
+TEST_CASE("variants: choices, gaps, custom types, explicit [0]") {
+  CHECK(
+      makePack("NOV", {"ArmDoors.ogg", "AfterLanding.ogg"}).variantChoices() ==
+      std::vector<int>{0});
+  // gap at 2 is never picked untagged armdoors competes with [1]
+  const Pack gap = makePack(
+      "GAP", {"ArmDoors.ogg", "ArmDoors[1].ogg", "AfterLanding[3].ogg"});
+  CHECK(gap.variantChoices() == std::vector<int>{0, 1, 3});
+  Rng rng(2);
+  for (int k = 0; k < 100; ++k) CHECK(pickVariant(gap, rng) != 2);
+  // untagged files shared by all variants dont make 0 a choice
+  CHECK(makePack("SHR",
+                 {"ArmDoors[1].ogg", "ArmDoors[2].ogg", "AfterLanding.ogg"})
+            .variantChoices() == std::vector<int>{1, 2});
+  // one variant only like uales
+  const Pack one = makePack("ONE", {"AfterTakeoff[2].ogg", "ArmDoors[2].ogg"});
+  CHECK(one.variantChoices() == std::vector<int>{2});
+  for (int k = 0; k < 20; ++k) CHECK(pickVariant(one, rng) == 2);
+  // custom types are never played so their variants dont count
+  CHECK(
+      makePack("CUS", {"ArmDoors.ogg", "Turbulence[5].ogg"}).variantChoices() ==
+      std::vector<int>{0});
+  // explicit [0] is variant 0
+  const Pack zero = makePack("ZER", {"ArmDoors[0].ogg", "ArmDoors[1].ogg"});
+  CHECK(zero.variantChoices() == std::vector<int>{0, 1});
+  SelectContext c = ctxFor(Family::A320, false, TimeOfDay::Morning);
+  c.variant = 0;
+  CHECK(pick(zero, AnnType::ArmDoors, c) == "ArmDoors[0].ogg");
+  c.variant = 7;  // stale variant falls back to 0 first fenix
+  CHECK(pick(zero, AnnType::ArmDoors, c) == "ArmDoors[0].ogg");
 }
 
 TEST_CASE("selection: ties avoid the file played last") {

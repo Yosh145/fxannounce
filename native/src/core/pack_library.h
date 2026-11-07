@@ -21,7 +21,7 @@ struct Pack {
 
   bool isDefault() const;
   int countOf(AnnType t) const;
-  // custom unplayed type names once each
+  std::vector<int> variantChoices() const;
   std::vector<std::string> customTypes() const;
 };
 

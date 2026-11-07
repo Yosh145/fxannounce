@@ -117,6 +117,7 @@ Fenix types, and the mode each one is performed in unless a mode tag overrides i
   | A340-600 *(later phase)* | A340, A346 | A346 |
 - **Refueling:** `Refueling`, `Refuelling`. True while fuel is being loaded (§ 4.2).
 - **Time of day** (local time at the aircraft): `Morning` 06–12, `Afternoon` 12–18, `Evening` 18–24, `Night` 00–06.
+  When no file of an announcement fits the time of day, the nearest time of day that has one is used (§ 3.3, D-28).
 - **FMGS flight phase:** `PreFlight`, `Takeoff`, `Climb`, `Cruise`, `Descent`, `Approach`, `GA`, `Done`, taken from
   the ToLiss FMGS phase (§ 4.2).
 - **Overwater:** `Overwater`. Fenix computes it from the route (50 NM from land). FXAnnounce takes it from the livery
@@ -130,7 +131,7 @@ Fenix types, and the mode each one is performed in unless a mode tag overrides i
 - **Fenix:** tags of different categories must all be satisfied (AND). Several tags of the same category need only
   one to match (OR).
 - **FXAnnounce:** follows that rule, and treats each custom tag as its own category, so every custom tag on a file
-  must be present. Variant files are eligible only when their variant is the session variant (§ 3.4).
+  must be present. Variant files are eligible only when their variant is the one in use for the announcement (§ 3.4).
 
 ### 3.3 Choice
 - **Fenix:** among eligible files the purser picks the one with the most matching tags.
@@ -141,12 +142,26 @@ Fenix types, and the mode each one is performed in unless a mode tag overrides i
     (D-4).
   - The highest score wins. Ties are broken at random, avoiding the file played last for that type, which matters for
     the repeated BoardingWelcome.
+  - **Nearest time of day (D-28):** when no file is eligible (in any variant, § 3.4) and some file of the announcement
+    has a time-of-day tag, the choice is made again as if it were the nearest other time of day, and the first that
+    finds a file wins. Nearness is the clock distance from the local time to the period: at 01:00 Evening (1 h back)
+    comes before Morning (5 h ahead), then Afternoon. On an equal distance the coming period goes first. Only the
+    time-of-day tag is relaxed: aircraft, refuelling, phase, overwater and custom tags still have to match, and an
+    untagged file that fits always beats a file of another time of day.
 
 ### 3.4 Variants
 - **Fenix:** once per sim session, a random variant V in 0…max (the largest variant in the active pack) is picked
   and used for all flights, unless another pack is activated. Files of variant V are used. When the pack has no
   files of variant V for an announcement, variant 0 files are used. Gaps in the numbering fall back to variant 0.
-- **FXAnnounce:** the same. V is re-rolled whenever the active pack changes.
+- **FXAnnounce** (D-27):
+  - V is picked at random from the variants the pack actually has: every numbered variant on a playable file, plus
+    0 when it is a real alternative (some announcement has both untagged files and numbered ones) or when the pack
+    has no numbered files. A pack with only `[1]`–`[3]` files (BAW) picks 1, 2 or 3, never 0, and a gap in the
+    numbering is never picked.
+  - For each announcement: files of variant V; when none fits, variant 0 files (Fenix); when none of those fits
+    either, the files of another variant that has a fitting file, picked at random. An announcement is skipped only
+    when no file of any variant fits the other tags.
+  - V is re-rolled whenever the active pack changes, or a rescan leaves the pack without variant V.
 
 ## 4. Behaviour
 
@@ -397,3 +412,5 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
 | D-24 | Before landing, CabinSecured comes when the cabin check ends in the approach window; CrewTakeSeats and CabinDim wait for a NO SMOKING flick or the gear down (§ 4.1) | Owner's choice (Run2): the landing calls came at 10,000 ft, 9 min before touchdown |
 | D-25 | Pilot signals: a purser call while airborne or a NO SMOKING flick plays AfterTakeoff at once ("crew may leave their seats") (§ 4.1, § 4.2) | Owner's choice: airlines signal the cabin with a chime or a sign flick |
 | D-26 | The turnaround is a setting, off by default. Off, the flight ends after DeboardingComplete, and a new SimBrief OFP from this airport starts the next one (§ 4.4) | Owner's choice: not everyone flies legs back to back |
+| D-27 | The session variant is picked from the variants the pack has, not from 0…max, and when neither V nor 0 has a fitting file for an announcement, another variant's file plays (§ 3.4) | Owner's choice (0.3.1): BAW has ArmDoors, BoardingComplete and DisarmDoors only as `[1]`–`[3]`, AfterTakeoff and PreSafetyBriefing only as `[1]`–`[2]`. Rolling 0 (one session in four) or 3 silenced them |
+| D-28 | When no file of an announcement fits the time of day, the file for the nearest time of day plays (§ 3.3) | Owner's choice (0.3.1): BAW has BoardingWelcome, AfterLanding and AfterTakeoff for Morning, Afternoon and Evening only, so a night flight had none of them. Fenix skips them |

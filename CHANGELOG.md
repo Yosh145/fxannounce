@@ -3,6 +3,20 @@
 One `## x.y.z` section per version, newest first. The section is pasted into the GitHub release for tag `vx.y.z`,
 and the release is refused if it's missing.
 
+## 0.3.1
+### Fixes
+- **Packs with numbered variants play again.** A pack whose files are only tagged `[1]`, `[2]`, `[3]` (BAW, for
+  example) could pick variant 0 for the session. It has no variant 0 files, so the doors, boarding complete, safety
+  briefing and after-takeoff announcements were skipped as "no sound in pack". The session variant is now picked at
+  random from the variants the pack actually has.
+- When the session's variant has no file for an announcement (BAW has ArmDoors `[3]` but no AfterTakeoff `[3]`), the
+  untagged file plays as before. If there is none, a file from another variant plays instead of nothing.
+- A pack rescan that removes the session's variant picks a new one.
+- **Night flights hear the welcome, after-takeoff and after-landing announcements.** When a pack has no file for the
+  current time of day (BAW has Morning, Afternoon and Evening, but no Night), the file for the nearest time of day
+  plays: at 01:00 the Evening one, at 05:00 the Morning one. A file without a time of day that fits still comes first,
+  and the other tags (aircraft, refuelling and so on) still have to match.
+
 ## 0.3.0
 ### A new window
 - **Two themes:** *Dark* (night navy with airline blue and red) and *White* (white with airline red). Switch with
